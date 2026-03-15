@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Haply PWA Test Page</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+    h1 {
+      color: #be185d;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border-left: 4px solid #be185d;
+    }
+    .test-section h2 {
+      color: #111;
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 5px 0;
+    }
+    .status.pass {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status.fail {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .status.warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .info {
+      color: #666;
+      font-size: 14px;
+      margin: 5px 0;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+    }
+    button {
+      background: #be185d;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px 5px 5px 0;
+    }
+    button:hover {
+      background: #9f1239;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .card {
+      padding: 15px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    .card h3 {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .card p {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Haply PWA Test Suite</h1>
+    <p class="subtitle">Verify your Progressive Web App is configured correctly</p>
+
+    <!-- Service Worker Test -->
+    <div class="test-section">
+      <h2>1. Service Worker</h2>
+      <div id="sw-status"></div>
+      <div id="sw-info"></div>
+      <button onclick="testServiceWorker()">Re-test Service Worker</button>
+      <button onclick="unregisterSW()">Unregister SW</button>
+    </div>
+
+    <!-- Manifest Test -->
+    <div class="test-section">
+      <h2>2. Web App Manifest</h2>
+      <div id="manifest-status"></div>
+      <div id="manifest-info"></div>
+      <button onclick="testManifest()">Re-test Manifest</button>
+    </div>
+
+    <!-- Installation Test -->
+    <div class="test-section">
+      <h2>3. Installation Status</h2>
+      <div id="install-status"></div>
+      <div id="install-info"></div>
+    </div>
+
+    <!-- Icons Test -->
+    <div class="test-section">
+      <h2>4. App Icons</h2>
+      <div id="icons-status"></div>
+      <div class="grid" id="icons-grid"></div>
+    </div>
+
+    <!-- Network Test -->
+    <div class="test-section">
+      <h2>5. Network & Caching</h2>
+      <div id="network-status"></div>
+      <button onclick="testOffline()">Test Offline Mode</button>
+      <button onclick="clearCache()">Clear Cache</button>
+    </div>
+
+    <!-- Device Info -->
+    <div class="test-section">
+      <h2>6. Device Information</h2>
+      <div class="grid" id="device-info"></div>
+    </div>
+
+    <!-- Lighthouse Score -->
+    <div class="test-section">
+      <h2>7. Next Steps</h2>
+      <p class="info">
+        ✓ Run Lighthouse audit in Chrome DevTools (F12 → Lighthouse → PWA)<br>
+        ✓ Test on actual mobile devices (iOS Safari & Android Chrome)<br>
+        ✓ Verify offline functionality works correctly<br>
+        ✓ Test the install prompt on different devices
+      </p>
+      <button onclick="window.open('/', '_blank')">Open Main App</button>
+      <button onclick="location.reload()">Refresh Tests</button>
+    </div>
+  </div>
+
+  <script>
+    // Test Service Worker
+    function testServiceWorker() {
+      const statusDiv = document.getElementById('sw-status');
+      const infoDiv = document.getElementById('sw-info');
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg) {
+            statusDiv.innerHTML = '<span class="status pass">✓ Service Worker Registered</span>';
+            infoDiv.innerHTML = `
+              <div class="info">
+                <strong>Scope:</strong> ${reg.scope}<br>
+                <strong>State:</strong> ${reg.active ? reg.active.state : 'installing'}<br>
+                <strong>Script URL:</strong> ${reg.active ? reg.active.scriptURL : 'N/A'}
+              </div>
+            `;
+          } else {
+            statusDiv.innerHTML = '<span class="status fail">✗ Service Worker Not Registered</span>';
+            infoDiv.innerHTML = '<div class="info">Try refreshing the page or check console for errors.</div>';
+          }
+        });
+      } else {
+        statusDiv.innerHTML = '<span class="status fail">✗ Service Workers Not Supported</span>';
+        infoDiv.innerHTML = '<div class="info">This browser does not support Service Workers.</div>';
+      }
+    }
+
+    // Unregister Service Worker
+    function unregisterSW() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg) {
+            reg.unregister().then(() => {
+              alert('Service Worker unregistered. Refresh the page.');
+              location.reload();
+            });
+          }
+        });
+      }
+    }
+
+    // Test Manifest
+    function testManifest() {
+      const statusDiv = document.getElementById('manifest-status');
+      const infoDiv = document.getElementById('manifest-info');
+      
+      fetch('/manifest.json')
+        .then(res => res.json())
+        .then(manifest => {
+          statusDiv.innerHTML = '<span class="status pass">✓ Manifest Found</span>';
+          infoDiv.innerHTML = `
+            <div class="info">
+              <strong>Name:</strong> ${manifest.name}<br>
+              <strong>Short Name:</strong> ${manifest.short_name}<br>
+              <strong>Theme Color:</strong> ${manifest.theme_color}<br>
+              <strong>Display Mode:</strong> ${manifest.display}<br>
+              <strong>Icons:</strong> ${manifest.icons.length} sizes defined
+            </div>
+          `;
+        })
+        .catch(err => {
+          statusDiv.innerHTML = '<span class="status fail">✗ Manifest Not Found</span>';
+          infoDiv.innerHTML = `<div class="info">Error: ${err.message}</div>`;
+        });
+    }
+
+    // Test Installation
+    function testInstallation() {
+      const statusDiv = document.getElementById('install-status');
+      const infoDiv = document.getElementById('install-info');
+      
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                          window.navigator.standalone === true;
+      
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isAndroid = /Android/.test(navigator.userAgent);
+      
+      if (isStandalone) {
+        statusDiv.innerHTML = '<span class="status pass">✓ App is Installed</span>';
+        infoDiv.innerHTML = '<div class="info">Running in standalone mode (installed PWA)</div>';
+      } else {
+        statusDiv.innerHTML = '<span class="status warning">⚠ App Not Installed</span>';
+        if (isIOS) {
+          infoDiv.innerHTML = '<div class="info">iOS: Use Share → Add to Home Screen to install</div>';
+        } else if (isAndroid) {
+          infoDiv.innerHTML = '<div class="info">Android: Look for install banner or Chrome menu → Install app</div>';
+        } else {
+          infoDiv.innerHTML = '<div class="info">Desktop: Look for install icon in address bar</div>';
+        }
+      }
+    }
+
+    // Test Icons
+    function testIcons() {
+      const statusDiv = document.getElementById('icons-status');
+      const gridDiv = document.getElementById('icons-grid');
+      
+      const iconSizes = [72, 96, 128, 144, 152, 180, 192, 384, 512];
+      let loadedIcons = 0;
+      let failedIcons = 0;
+      
+      gridDiv.innerHTML = '';
+      
+      iconSizes.forEach(size => {
+        const img = new Image();
+        const card = document.createElement('div');
+        card.className = 'card';
+        
+        img.onload = () => {
+          loadedIcons++;
+          card.innerHTML = `
+            <h3>icon-${size}x${size}.png</h3>
+            <p style="color: #059669;">✓ Loaded</p>
+          `;
+          updateIconStatus();
+        };
+        
+        img.onerror = () => {
+          failedIcons++;
+          card.innerHTML = `
+            <h3>icon-${size}x${size}.png</h3>
+            <p style="color: #dc2626;">✗ Missing</p>
+          `;
+          updateIconStatus();
+        };
+        
+        img.src = `/icons/icon-${size}x${size}.png`;
+        gridDiv.appendChild(card);
+      });
+      
+      function updateIconStatus() {
+        const total = iconSizes.length;
+        const tested = loadedIcons + failedIcons;
+        
+        if (tested === total) {
+          if (failedIcons === 0) {
+            statusDiv.innerHTML = '<span class="status pass">✓ All Icons Found</span>';
+          } else {
+            statusDiv.innerHTML = `<span class="status fail">✗ ${failedIcons} Icons Missing</span>`;
+          }
+        }
+      }
+    }
+
+    // Test Offline
+    function testOffline() {
+      alert('To test offline mode:\n\n1. Open DevTools (F12)\n2. Go to Network tab\n3. Check "Offline" checkbox\n4. Try navigating the app\n\nCached pages should still load!');
+    }
+
+    // Clear Cache
+    function clearCache() {
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        }).then(() => {
+          alert('Cache cleared! Refresh the page.');
+          location.reload();
+        });
+      }
+    }
+
+    // Device Info
+    function showDeviceInfo() {
+      const gridDiv = document.getElementById('device-info');
+      
+      const info = {
+        'User Agent': navigator.userAgent.substring(0, 50) + '...',
+        'Platform': navigator.platform,
+        'Online': navigator.onLine ? 'Yes' : 'No',
+        'Language': navigator.language,
+        'Screen Size': `${screen.width}x${screen.height}`,
+        'Viewport': `${window.innerWidth}x${window.innerHeight}`,
+        'Cookie Enabled': navigator.cookieEnabled ? 'Yes' : 'No',
+        'SW Support': 'serviceWorker' in navigator ? 'Yes' : 'No'
+      };
+      
+      gridDiv.innerHTML = '';
+      Object.keys(info).forEach(key => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<h3>${key}</h3><p>${info[key]}</p>`;
+        gridDiv.appendChild(card);
+      });
+    }
+
+    // Run all tests on load
+    window.onload = () => {
+      testServiceWorker();
+      testManifest();
+      testInstallation();
+      testIcons();
+      showDeviceInfo();
+      
+      // Listen for online/offline changes
+      window.addEventListener('online', () => {
+        document.getElementById('network-status').innerHTML = 
+          '<span class="status pass">✓ Online</span>';
+      });
+      
+      window.addEventListener('offline', () => {
+        document.getElementById('network-status').innerHTML = 
+          '<span class="status warning">⚠ Offline</span>';
+      });
+      
+      // Initial network status
+      document.getElementById('network-status').innerHTML = 
+        navigator.onLine ? 
+        '<span class="status pass">✓ Online</span>' : 
+        '<span class="status warning">⚠ Offline</span>';
+    };
+  </script>
+</body>
+</html>
