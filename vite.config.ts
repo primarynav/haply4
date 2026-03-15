@@ -9,8 +9,6 @@
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
-        '@jsr/supabase__supabase-js@2.49.8': '@jsr/supabase__supabase-js',
-        '@jsr/supabase__supabase-js@2': '@jsr/supabase__supabase-js',
         '@': path.resolve(__dirname, './src'),
       },
     },
