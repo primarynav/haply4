@@ -3,3 +3,8 @@ build
 dist
 .env
 .env.local
+
+# iOS
+ios/App/Pods
+ios/App/App/public
+ios/App/App/capacitor.config.json
