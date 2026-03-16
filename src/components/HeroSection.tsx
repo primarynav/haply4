@@ -5,19 +5,19 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 
 const heroSlides = [
   {
-    src: "https://images.unsplash.com/photo-1551801679-787f2accc402?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb3VwbGUlMjBjb252ZXJzYXRpb24lMjB0YWxraW5nJTIwZXllJTIwY29udGFjdCUyMHJlc3RhdXJhbnQlMjBkYXRlfGVufDF8fHx8MTc1OTYwNzU2M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+    src: "/images/hero-1.jpg",
     alt: "Couple actively talking and making eye contact during a restaurant date",
     name: "Sarah & Mike",
     story: "Found love again after 2 months",
   },
   {
-    src: "https://images.unsplash.com/photo-1611620005152-bb5732ceff8d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbnRlcnJhY2lhbCUyMGNvdXBsZSUyMGZhY2luZyUyMGVhY2glMjBvdGhlciUyMGxhdWdoaW5nJTIwcm9tYW50aWMlMjBicmlnaHR8ZW58MXx8fHwxNzczNTI0MTI4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+    src: "/images/hero-2.jpg",
     alt: "Mixed race couple facing each other and laughing together",
     name: "Lisa & James",
     story: "Found their second chance at love through Haply",
   },
   {
-    src: "https://images.unsplash.com/photo-1766041675624-37dba05ca993?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb3VwbGUlMjBzdW5zZXQlMjBiZWFjaCUyMHdhbGslMjByb21hbnRpY3xlbnwxfHx8fDE3NzM1MjM1MTN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+    src: "/images/hero-3.jpg",
     alt: "Romantic couple walking on the beach at sunset",
     name: "Karen & David",
     story: "Rediscovered love when they least expected it",

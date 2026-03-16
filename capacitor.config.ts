@@ -5,12 +5,12 @@ const config: CapacitorConfig = {
   appName: 'Happily Ever After Again',
   webDir: 'build',
   server: {
+    iosScheme: 'https',
     androidScheme: 'https',
   },
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
-    scheme: 'Happily Ever After Again',
   },
 };
 
