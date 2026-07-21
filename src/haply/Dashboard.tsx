@@ -1,0 +1,480 @@
+import { AI_MATCH_INTROS, EVENTS, PROFILES } from './data';
+import type { DashTab, H } from './HaplyApp';
+import { CatPills, Composer, PostCard, filteredPosts } from './CommunityPublic';
+import { Ic, Logo, serif } from './ui';
+
+const feedH = 'calc(100vh - 185px)';
+
+export function Dashboard({ h }: { h: H }) {
+  return (
+    <div style={{ minHeight: '100vh', background: '#FAF7F4' }}>
+      <header style={{ background: '#FAF7F4', borderBottom: '1px solid #EDE6DF', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 clamp(16px,4vw,32px)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 64 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Logo size={28} color="#e11d48" />
+            <h1 style={{ fontFamily: serif, fontSize: 20, fontWeight: 700, margin: 0 }}>Haply</h1>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#44403C', fontSize: 15 }} data-rs-hide="1">
+              Hi, {h.userName}{' '}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
+                <Ic name="verified" fill size={13} />
+                Verified
+              </span>
+            </span>
+            <button onClick={h.invite} className="hvc-rose" style={{ background: 'none', border: 'none', color: '#44403C', fontSize: 14, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Ic name="person_add" size={17} />
+              Invite
+            </button>
+            <button onClick={() => h.setDashTab('profile')} className="hvc-rose" style={{ background: 'none', border: 'none', color: '#44403C', fontSize: 14, cursor: 'pointer', padding: 0 }}>
+              Profile
+            </button>
+            <button onClick={h.logout} className="hvb-sand" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '7px 16px', fontSize: 14, fontWeight: 500, color: '#211D1A', cursor: 'pointer' }}>
+              Log out
+            </button>
+          </div>
+        </div>
+      </header>
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px clamp(16px,4vw,32px)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', background: '#F0E9E2', borderRadius: 24, padding: 4, gap: 4, marginBottom: 24, maxWidth: 720 }}>
+          <TabBtn h={h} tab="community" icon="diversity_1" label="Community" onClick={() => h.setDashTab('community')} />
+          <TabBtn h={h} tab="discover" icon="explore" label="Discover" onClick={h.tabDiscover} />
+          <TabBtn h={h} tab="ai-match" icon="forum" label="Matchmaker" onClick={h.tabAI} />
+          <TabBtn h={h} tab="matches" icon="favorite" label="Matches" onClick={() => h.setDashTab('matches')} />
+          <TabBtn h={h} tab="messages" icon="chat_bubble" label="Messages" onClick={() => h.setDashTab('messages')} />
+        </div>
+
+        {h.dashTab === 'community' && <CommunityTab h={h} />}
+        {h.dashTab === 'discover' && <DiscoverTab h={h} />}
+        {h.dashTab === 'ai-match' && <MatchmakerTab h={h} />}
+        {h.dashTab === 'matches' && <MatchesTab h={h} />}
+        {h.dashTab === 'messages' && <MessagesTab h={h} />}
+        {h.dashTab === 'profile' && <ProfileTab h={h} />}
+      </div>
+    </div>
+  );
+}
+
+function TabBtn({ h, tab, icon, label, onClick }: { h: H; tab: DashTab; icon: string; label: string; onClick: () => void }) {
+  const on = h.dashTab === tab;
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 7,
+        border: 'none',
+        borderRadius: 999,
+        padding: 9,
+        fontSize: 14,
+        fontWeight: 600,
+        cursor: 'pointer',
+        background: on ? '#fff' : 'transparent',
+        color: on ? '#211D1A' : '#78716C',
+        boxShadow: on ? '0 1px 3px rgba(33,29,26,0.12)' : 'none'
+      }}
+    >
+      <Ic name={icon} size={17} />
+      {label}
+    </button>
+  );
+}
+
+function CommunityTab({ h }: { h: H }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }} data-rs="1">
+      <div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+          <CatPills h={h} small />
+        </div>
+        <Composer h={h} dash />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {filteredPosts(h).map((po, i) => (
+            <PostCard key={po.id} post={po} index={i} h={h} />
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: '#FFF1F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Ic name="location_on" fill size={20} color="#e11d48" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Seattle group</div>
+              <div style={{ fontSize: 12, color: '#78716C' }}>2,406 members · you're in</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', marginBottom: 12 }}>
+            {(
+              [
+                ['J', '#FFE4E6', '#be123c', 12],
+                ['D', '#E0E7FF', '#4338ca', 12],
+                ['A', '#DCFCE7', '#15803d', 12],
+                ['M', '#FEF3C7', '#b45309', 12],
+                ['+2k', '#F0E9E2', '#57534E', 10]
+              ] as const
+            ).map(([initial, bg, color, fs], i) => (
+              <div key={initial} style={{ width: 28, height: 28, borderRadius: '50%', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fs, fontWeight: 700, border: '2px solid #fff', marginLeft: i > 0 ? -8 : 0 }}>
+                {initial}
+              </div>
+            ))}
+          </div>
+          <button onClick={h.groupToast} className="hvb-ink2" style={{ width: '100%', background: '#211D1A', color: '#fff', border: 'none', borderRadius: 999, padding: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            Open group chat
+          </button>
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 14px' }}>Upcoming near you</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {EVENTS.map((de) => (
+              <div key={de.name} onClick={() => h.rsvp(de.name)} className="hvb-cream" style={{ display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', borderRadius: 10, padding: 4, margin: -4 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Ic name={de.icon} fill size={19} color="#b45309" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>{de.name}</div>
+                  <div style={{ fontSize: 12, color: '#78716C' }}>
+                    {de.when} · {de.going} going
+                  </div>
+                </div>
+                <Ic name="arrow_forward" size={18} color="#A8A29E" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ background: 'linear-gradient(135deg,#e11d48,#be123c)', borderRadius: 16, padding: 20, color: '#fff' }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>Know someone starting over?</h3>
+          <p style={{ fontSize: 13, margin: '0 0 14px', opacity: 0.9, lineHeight: 1.5 }}>Most members are here because a friend sent them. Pass it on.</p>
+          <button onClick={h.invite} className="hvb-rose50" style={{ width: '100%', background: '#fff', color: '#be123c', border: 'none', borderRadius: 999, padding: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            <Ic name="content_copy" size={16} />
+            Copy invite link
+          </button>
+        </div>
+        {!h.datingOn && (
+          <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: 20 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>Ready to date?</h3>
+            <p style={{ fontSize: 13, color: '#57534E', margin: '0 0 14px', lineHeight: 1.5 }}>You're in community-only mode. Flip dating on whenever it feels right.</p>
+            <button onClick={h.turnDatingOn} className="hvb-rose100" style={{ width: '100%', background: '#FFF1F2', color: '#be123c', border: '1px solid #FECDD3', borderRadius: 999, padding: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              Turn on dating
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DiscoverTab({ h }: { h: H }) {
+  const feed = PROFILES.filter((p) => !h.hidden.includes(p.id));
+  return (
+    <div id="feed" style={{ height: feedH, minHeight: 520, overflowY: 'auto', scrollSnapType: 'y mandatory', borderRadius: 18 }}>
+      {feed.map((p) => {
+        const liked = h.liked.includes(p.id);
+        const matched = h.matched.includes(p.id);
+        return (
+          <div key={p.id} style={{ position: 'relative', height: feedH, minHeight: 520, scrollSnapAlign: 'start', overflow: 'hidden' }}>
+            <div onClick={() => h.openDetail(p.id)} style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}>
+              <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent,transparent 55%,rgba(20,16,14,0.72))' }} />
+              <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', color: '#fff', fontSize: 12, padding: '6px 12px', borderRadius: 999 }}>Tap to view profile</div>
+            </div>
+            {matched && (
+              <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e11d48', color: '#fff', fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 999 }}>
+                  <Ic name="favorite" fill size={12} />
+                  Mutual match
+                </span>
+              </div>
+            )}
+            <div style={{ position: 'absolute', right: 16, bottom: 96, display: 'flex', flexDirection: 'column', gap: 14, zIndex: 10 }}>
+              <button
+                onClick={() => h.doLike(p.id)}
+                title="Like"
+                className="hvb-rose"
+                style={{ width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', transition: 'all .2s', background: liked ? '#e11d48' : 'rgba(255,255,255,0.2)', border: liked ? '1px solid #fb7185' : '1px solid rgba(255,255,255,0.3)' }}
+              >
+                <Ic name="favorite" fill={liked} size={28} color="#fff" />
+              </button>
+              <button
+                onClick={() => h.passProfile(p.id)}
+                title="Pass"
+                className="hvb-white30"
+                style={{ width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.3)' }}
+              >
+                <Ic name="close" size={28} color="#fff" />
+              </button>
+              <button
+                onClick={() => h.openChat(p.id)}
+                title="Message"
+                className="hvb-white35"
+                style={{ width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', transition: 'all .2s', background: matched ? 'rgba(225,29,72,0.75)' : 'rgba(255,255,255,0.2)', border: matched ? '1px solid #fb7185' : '1px solid rgba(255,255,255,0.3)' }}
+              >
+                <Ic name="chat_bubble" size={28} color="#fff" />
+              </button>
+            </div>
+            <div style={{ position: 'absolute', bottom: 32, left: 24, right: 96, color: '#fff', zIndex: 10 }}>
+              <h2 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, margin: '0 0 6px' }}>
+                {p.name}, {p.age}
+              </h2>
+              <p style={{ fontSize: 17, margin: '0 0 10px', opacity: 0.9 }}>{p.location}</p>
+              <p style={{ fontSize: 15, lineHeight: 1.6, maxWidth: 430, margin: '0 0 12px' }}>{p.bio}</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                {p.interests.map((i) => (
+                  <span key={i} style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 999 }}>
+                    {i}
+                  </span>
+                ))}
+              </div>
+              <p style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(22,101,52,0.55)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', borderRadius: 999, padding: '6px 14px', border: '1px solid rgba(74,222,128,0.4)', margin: 0 }}>
+                <Ic name="verified" fill size={15} color="#4ade80" />
+                <span style={{ fontWeight: 600 }}>Verified divorced · {p.divorceYear}</span>
+              </p>
+            </div>
+            <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.6)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>Scroll for more</span>
+              <div style={{ width: 4, height: 24, background: 'rgba(255,255,255,0.4)', borderRadius: 999, animation: 'pulse 2s infinite' }} />
+            </div>
+          </div>
+        );
+      })}
+      <div style={{ height: feedH, minHeight: 520, scrollSnapAlign: 'start', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0E9E2' }}>
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <Ic name="favorite" size={64} color="#e11d48" />
+          <h3 style={{ fontFamily: serif, fontSize: 26, fontWeight: 600, margin: '20px 0 12px' }}>You've met everyone for now</h3>
+          <p style={{ color: '#57534E', margin: '0 0 24px', fontSize: 16 }}>New verified members join every day. Meanwhile, the community's always on.</p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button onClick={h.startOver} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '11px 24px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+              Start over
+            </button>
+            <button onClick={() => h.setDashTab('community')} className="hvb-cream" style={{ background: '#fff', color: '#211D1A', border: '1px solid #D6CCC2', borderRadius: 999, padding: '11px 24px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
+              Visit community
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MatchmakerTab({ h }: { h: H }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24, alignItems: 'start' }} data-rs="1">
+      <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #EDE6DF', boxShadow: '0 10px 24px -12px rgba(33,29,26,0.12)', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 205px)', minHeight: 520 }}>
+        <div style={{ background: '#211D1A', padding: '16px 24px', color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ background: 'rgba(255,255,255,0.14)', padding: 8, borderRadius: '50%', display: 'flex' }}>
+            <Ic name="forum" size={24} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: 17, margin: 0, fontWeight: 600 }}>Your matchmaker</h3>
+            <p style={{ color: '#A8A29E', fontSize: 13, margin: 0 }}>Tell me what matters — I'll introduce you</p>
+          </div>
+        </div>
+        <div id="aiScroll" style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {h.aiMsgs.map((m, i) => {
+            const me = m.from === 'me';
+            return (
+              <div key={i} style={{ display: 'flex', gap: 12, flexDirection: me ? 'row-reverse' : 'row' }}>
+                <div style={{ width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: me ? '#e11d48' : '#211D1A' }}>
+                  <Ic name={me ? 'person' : 'forum'} size={19} color="#fff" />
+                </div>
+                <div style={{ flex: 1, textAlign: me ? 'right' : 'left' }}>
+                  <div style={{ display: 'inline-block', padding: '13px 16px', fontSize: 15, lineHeight: 1.55, textAlign: 'left', background: me ? '#e11d48' : '#F0E9E2', color: me ? '#fff' : '#211D1A', borderRadius: me ? '14px 0 14px 14px' : '0 14px 14px 14px' }}>{m.text}</div>
+                </div>
+              </div>
+            );
+          })}
+          {h.aiTyping && (
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ width: 38, height: 38, background: '#211D1A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Ic name="forum" size={19} color="#fff" />
+              </div>
+              <div style={{ background: '#F0E9E2', padding: 15, borderRadius: 14, borderTopLeftRadius: 0, display: 'flex', gap: 5, alignItems: 'center' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s infinite' }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s .2s infinite' }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s .4s infinite' }} />
+              </div>
+            </div>
+          )}
+        </div>
+        <div style={{ borderTop: '1px solid #EDE6DF', padding: 16, background: '#FAF7F4', display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            placeholder="Type your message..."
+            value={h.aiDraft}
+            onChange={(e) => h.setAiDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') h.sendAi();
+            }}
+            className="fc-rose"
+            style={{ flex: 1, background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '10px 18px', fontSize: 15, outline: 'none' }}
+          />
+          <button onClick={h.sendAi} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Ic name="send" size={20} />
+          </button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <h3 style={{ fontSize: 19, margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>Your introductions</h3>
+        {!h.aiShowMatches ? (
+          <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
+            <Ic name="forum" size={40} color="#D6CCC2" />
+            <p style={{ color: '#78716C', fontSize: 15, margin: '12px 0 0', lineHeight: 1.5 }}>Tell the matchmaker what you're looking for — introductions appear here.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {AI_MATCH_INTROS.map(({ id, pct, reason }) => {
+              const p = h.prof(id)!;
+              const liked = h.liked.includes(id);
+              const matched = h.matched.includes(id);
+              return (
+                <div key={id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDE6DF', overflow: 'hidden', animation: 'popin .35s ease' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: 16 }}>
+                    <img src={p.image} alt={p.name} style={{ width: 72, height: 72, borderRadius: 12, objectFit: 'cover' }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <h4 style={{ fontSize: 16, margin: 0, fontWeight: 700 }}>{p.name}</h4>
+                        <span style={{ background: '#F0FDF4', color: '#166534', fontSize: 11, padding: '2px 9px', borderRadius: 999, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                          <Ic name="verified" fill size={11} />
+                          {pct}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 13, color: '#78716C', margin: '0 0 6px' }}>
+                        {p.age} · {p.location}
+                      </p>
+                      <p style={{ fontSize: 13, color: '#44403C', margin: '0 0 10px', lineHeight: 1.5 }}>{reason}</p>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => h.doLike(id)} style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', borderRadius: 999, padding: '7px 15px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: liked ? '#FECDD3' : '#e11d48', color: liked ? '#be123c' : '#fff' }}>
+                          <Ic name="favorite" fill={liked} size={15} />
+                          {matched ? 'Matched!' : liked ? 'Liked' : 'Like'}
+                        </button>
+                        <button onClick={() => h.openDetail(id)} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '7px 15px', fontSize: 13, fontWeight: 600, color: '#44403C', cursor: 'pointer' }}>
+                          View profile
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MatchesTab({ h }: { h: H }) {
+  const matchList = PROFILES.filter((p) => h.matched.includes(p.id));
+  return (
+    <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18 }}>
+      <div style={{ padding: '24px 24px 0' }}>
+        <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 600, margin: 0 }}>Your matches ({matchList.length})</h2>
+      </div>
+      <div style={{ padding: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(270px,1fr))', gap: 20 }}>
+          {matchList.map((mt) => (
+            <div key={mt.id} onClick={() => h.openChat(mt.id)} className="hv-matchcard" style={{ border: '1px solid #EDE6DF', borderRadius: 14, padding: 16, cursor: 'pointer', transition: 'all .2s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <img src={mt.image} alt={mt.name} style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover' }} />
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {mt.name}, {mt.age} <Ic name="verified" fill size={14} color="#16a34a" />
+                  </h3>
+                  <p style={{ fontSize: 13, color: '#78716C', margin: '2px 0 8px' }}>{mt.location}</p>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FFF1F2', color: '#be123c', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999 }}>
+                    <Ic name="favorite" fill size={12} />
+                    Mutual match
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MessagesTab({ h }: { h: H }) {
+  const msgList = PROFILES.filter((p) => h.matched.includes(p.id)).map((p) => {
+    const msgs = h.convos[p.id] || [];
+    const lastM = msgs[msgs.length - 1];
+    return { ...p, last: lastM ? lastM.text : 'Start a conversation', time: lastM ? lastM.time : '' };
+  });
+  return (
+    <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18 }}>
+      <div style={{ padding: '24px 24px 0' }}>
+        <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 600, margin: 0 }}>Messages</h2>
+      </div>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {msgList.map((mg) => (
+          <div key={mg.id} onClick={() => h.openChat(mg.id)} className="hvb-cream" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px', border: '1px solid #EDE6DF', borderRadius: 14, cursor: 'pointer', transition: 'background .15s' }}>
+            <img src={mg.image} alt={mg.name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+                {mg.name} <Ic name="verified" fill size={13} color="#16a34a" />
+              </h3>
+              <p style={{ fontSize: 14, color: '#57534E', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mg.last}</p>
+            </div>
+            <div style={{ fontSize: 12, color: '#78716C', whiteSpace: 'nowrap' }}>{mg.time}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProfileTab({ h }: { h: H }) {
+  return (
+    <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18 }}>
+      <div style={{ padding: '24px 24px 0' }}>
+        <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 600, margin: 0 }}>Your profile</h2>
+      </div>
+      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div style={{ width: 92, height: 92, borderRadius: '50%', background: '#FFE4E6', color: '#be123c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700 }}>{h.userInitial}</div>
+          <div>
+            <h3 style={{ fontSize: 24, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              {h.userName}{' '}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
+                <Ic name="verified" fill size={13} />
+                Verified divorced
+              </span>
+            </h3>
+            <p style={{ color: '#78716C', margin: '4px 0 10px', fontSize: 14 }}>{h.userEmail} · Seattle group</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={h.settingsToast} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#211D1A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
+                <Ic name="settings" size={15} />
+                Edit profile
+              </button>
+              <button onClick={h.toggleDating} style={{ border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, background: h.datingOn ? '#F0FDF4' : '#F0E9E2', color: h.datingOn ? '#166534' : '#44403C' }}>
+                <Ic name={h.datingOn ? 'toggle_on' : 'toggle_off'} size={16} />
+                {h.datingOn ? 'Dating: on' : 'Community-only'}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>About me</h4>
+          <p style={{ color: '#44403C', margin: 0, fontSize: 15, lineHeight: 1.65, maxWidth: 640 }}>
+            Recently divorced and ready for what's next. I believe in second chances and new beginnings — looking for people who understand the journey.
+          </p>
+        </div>
+        <div>
+          <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>My interests</h4>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {['Reading', 'Travel', 'Cooking', 'Fitness'].map((i) => (
+              <span key={i} style={{ background: '#F0E9E2', color: '#44403C', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>
+                {i}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
