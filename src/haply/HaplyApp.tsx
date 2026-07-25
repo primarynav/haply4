@@ -350,6 +350,20 @@ export default function HaplyApp() {
     void refreshPosts(u.id);
   };
 
+  // Surface OAuth failures that come back on the redirect (provider disabled,
+  // redirect URL not allowed, consent declined) instead of failing silently.
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const query = new URLSearchParams(window.location.search);
+    const detail = hash.get('error_description') || query.get('error_description');
+    const code = hash.get('error') || query.get('error');
+    if (detail || code) {
+      showToast(`Sign-in didn't finish: ${detail || code}`);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Session restore on load + OAuth redirect handling.
   useEffect(() => {
     const off = onAuth((u) => {
