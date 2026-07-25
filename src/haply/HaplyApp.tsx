@@ -121,6 +121,7 @@ export interface H {
   sendAi: () => void;
   userProfile: UserProfile;
   aiIntros: Intro[];
+  seeking?: string;
 
   matchPopId: number | null;
   closeMatchPop: () => void;
@@ -305,12 +306,13 @@ export default function HaplyApp() {
     setAiDraft('');
     setAiTyping(true);
     scrollBottom('aiScroll');
-    const { profile, facts } = absorbMessage(text, userProfile);
-    const ready = profileReady(profile);
+    const absorbed = absorbMessage(text, userProfile);
+    const ready = profileReady(absorbed.profile);
     const firstReveal = ready && !aiShowMatches;
-    setUserProfile(profile);
+    const reply = matchmakerReply(absorbed, firstReveal);
+    setUserProfile({ ...absorbed.profile, lastAsked: reply.lastAsked });
     setTimeout(() => {
-      setAiMsgs((m) => [...m, { from: 'ai', text: matchmakerReply(facts, profile, firstReveal) }]);
+      setAiMsgs((m) => [...m, { from: 'ai', text: reply.text }]);
       setAiTyping(false);
       if (ready) setAiShowMatches(true);
       scrollBottom('aiScroll');
@@ -573,6 +575,7 @@ export default function HaplyApp() {
     sendAi,
     userProfile,
     aiIntros: aiShowMatches ? buildIntros(userProfile, gsLooking) : [],
+    seeking: userProfile.seeking,
 
     matchPopId,
     closeMatchPop: () => setMatchPopId(null),

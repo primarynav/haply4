@@ -302,7 +302,14 @@ function MatchmakerTab({ h }: { h: H }) {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <h3 style={{ fontSize: 19, margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>Your introductions</h3>
+        <h3 style={{ fontSize: 19, margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
+          Your introductions
+          {h.seeking && (
+            <span style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
+              {h.seeking === 'anyone' ? 'anyone' : h.seeking} only
+            </span>
+          )}
+        </h3>
         {!h.aiShowMatches ? (
           <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
             <Ic name="forum" size={40} color="#D6CCC2" />
@@ -469,10 +476,15 @@ function ProfileTab({ h }: { h: H }) {
             ))}
           </div>
         </div>
-        {(h.userProfile.prefLocal || h.userProfile.prefSameAge || h.userProfile.prefKidsOk) && (
+        {(h.userProfile.seeking || h.userProfile.prefLocal || h.userProfile.prefSameAge || h.userProfile.prefKidsOk) && (
           <div>
             <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>Looking for</h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {h.userProfile.seeking && (
+                <span style={{ background: '#be123c', color: '#fff', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>
+                  {h.userProfile.seeking === 'anyone' ? 'Anyone' : h.userProfile.seeking === 'women' ? 'Women' : 'Men'}
+                </span>
+              )}
               {h.userProfile.prefLocal && <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>Someone local</span>}
               {h.userProfile.prefSameAge && <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>Around the same age</span>}
               {h.userProfile.prefKidsOk && <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>With or without kids</span>}

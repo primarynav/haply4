@@ -60,6 +60,7 @@ interface ProfileRow {
   id: string;
   name: string;
   gender: string | null;
+  seeking: string | null;
   age: number | null;
   city: string | null;
   kids: string | null;
@@ -81,6 +82,7 @@ export async function loadProfile(uid: string): Promise<{ profile: UserProfile; 
         ...emptyProfile(),
         age: data.age ?? undefined,
         gender: (data.gender as UserProfile['gender']) ?? undefined,
+        seeking: (data.seeking as UserProfile['seeking']) ?? undefined,
         city: data.city ?? undefined,
         kids: data.kids ?? undefined,
         interests: data.interests ?? [],
@@ -103,6 +105,7 @@ export async function saveProfile(uid: string, name: string, p: UserProfile, dat
       id: uid,
       name,
       gender: p.gender ?? null,
+      seeking: p.seeking ?? null,
       age: p.age ?? null,
       city: p.city ?? null,
       kids: p.kids ?? null,
