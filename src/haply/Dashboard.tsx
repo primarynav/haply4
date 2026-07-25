@@ -1,4 +1,4 @@
-import { AI_MATCH_INTROS, EVENTS, PROFILES } from './data';
+import { EVENTS, PROFILES } from './data';
 import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, filteredPosts } from './CommunityPublic';
 import { Ic, Logo, serif } from './ui';
@@ -310,8 +310,8 @@ function MatchmakerTab({ h }: { h: H }) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {AI_MATCH_INTROS.map(({ id, pct, reason }) => {
-              const p = h.prof(id)!;
+            {h.aiIntros.map(({ profile: p, pct, reason }) => {
+              const id = p.id;
               const liked = h.liked.includes(id);
               const matched = h.matched.includes(id);
               return (
@@ -443,21 +443,42 @@ function ProfileTab({ h }: { h: H }) {
           </div>
         </div>
         <div>
-          <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>About me</h4>
+          <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>My intro</h4>
           <p style={{ color: '#44403C', margin: 0, fontSize: 15, lineHeight: 1.65, maxWidth: 640 }}>
-            Recently divorced and ready for what's next. I believe in second chances and new beginnings — looking for people who understand the journey.
+            {h.userProfile.intro || "Recently divorced and ready for what's next. I believe in second chances and new beginnings — looking for people who understand the journey."}
           </p>
+          <p style={{ color: '#78716C', margin: '8px 0 0', fontSize: 13 }}>Written by your matchmaker from what you've shared — chat with it any time to update this.</p>
         </div>
+        {(h.userProfile.age || h.userProfile.city || h.userProfile.kids) && (
+          <div>
+            <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>My details</h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {h.userProfile.age && <span style={{ background: '#F0E9E2', color: '#44403C', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>Age {h.userProfile.age}</span>}
+              {h.userProfile.city && <span style={{ background: '#F0E9E2', color: '#44403C', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>{h.userProfile.city}</span>}
+              {h.userProfile.kids && <span style={{ background: '#F0E9E2', color: '#44403C', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>{h.userProfile.kids === 'No kids' ? 'No kids' : `Kids: ${h.userProfile.kids}`}</span>}
+            </div>
+          </div>
+        )}
         <div>
           <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>My interests</h4>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {['Reading', 'Travel', 'Cooking', 'Fitness'].map((i) => (
+            {(h.userProfile.interests.length ? h.userProfile.interests : ['Tell the matchmaker what you enjoy']).map((i) => (
               <span key={i} style={{ background: '#F0E9E2', color: '#44403C', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>
                 {i}
               </span>
             ))}
           </div>
         </div>
+        {(h.userProfile.prefLocal || h.userProfile.prefSameAge || h.userProfile.prefKidsOk) && (
+          <div>
+            <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>Looking for</h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {h.userProfile.prefLocal && <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>Someone local</span>}
+              {h.userProfile.prefSameAge && <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>Around the same age</span>}
+              {h.userProfile.prefKidsOk && <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 13, fontWeight: 600, padding: '6px 14px', borderRadius: 999 }}>With or without kids</span>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './styles.css';
-import { AI_REPLIES, CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
+import { CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
+import { absorbMessage, buildIntros, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
 import { Landing } from './Landing';
 import { GetStarted } from './GetStarted';
 import { CommunityPublic } from './CommunityPublic';
@@ -116,6 +117,8 @@ export interface H {
   aiTyping: boolean;
   aiShowMatches: boolean;
   sendAi: () => void;
+  userProfile: UserProfile;
+  aiIntros: Intro[];
 
   matchPopId: number | null;
   closeMatchPop: () => void;
@@ -180,12 +183,27 @@ export default function HaplyApp() {
   chatIdRef.current = chatId;
 
   const [aiMsgs, setAiMsgs] = useState<AiMsg[]>([
-    { from: 'ai', text: "Hi — I'm your matchmaker. Everyone I introduce you to is verified divorced, like you. Let's start simple: what matters most to you in a partner this time around?" }
+    { from: 'ai', text: "Hi — I'm your matchmaker. Tell me about yourself and what you're looking for: your age, your city, kids, what you enjoy. I'll build your intro, save it to your profile, and use it to introduce you to members who fit. You can change anything just by telling me." }
   ]);
   const [aiDraft, setAiDraft] = useState('');
-  const [aiStep, setAiStep] = useState(0);
   const [aiTyping, setAiTyping] = useState(false);
   const [aiShowMatches, setAiShowMatches] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    try {
+      const saved = localStorage.getItem('haply.profile');
+      if (saved) return { ...emptyProfile(), ...JSON.parse(saved) };
+    } catch {
+      /* private-mode or blocked storage: start fresh */
+    }
+    return emptyProfile();
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('haply.profile', JSON.stringify(userProfile));
+    } catch {
+      /* non-persistent environment */
+    }
+  }, [userProfile]);
 
   const [detailId, setDetailId] = useState<number | null>(null);
   const [matchPopId, setMatchPopId] = useState<number | null>(null);
@@ -267,17 +285,22 @@ export default function HaplyApp() {
   const sendAi = () => {
     const text = aiDraft.trim();
     if (!text || aiTyping) return;
+    if (violatesLanguagePolicy(text)) {
+      showToast('Our safety bot flagged that wording — Haply runs on kindness. Please rephrase 💛');
+      return;
+    }
     setAiMsgs((m) => [...m, { from: 'me', text }]);
     setAiDraft('');
     setAiTyping(true);
     scrollBottom('aiScroll');
-    const step = aiStep;
+    const { profile, facts } = absorbMessage(text, userProfile);
+    const ready = profileReady(profile);
+    const firstReveal = ready && !aiShowMatches;
+    setUserProfile(profile);
     setTimeout(() => {
-      const reply = step < AI_REPLIES.length ? AI_REPLIES[step] : "Noted — I'll factor that in. Check your introductions on the right, or keep going.";
-      setAiMsgs((m) => [...m, { from: 'ai', text: reply }]);
+      setAiMsgs((m) => [...m, { from: 'ai', text: matchmakerReply(facts, profile, firstReveal) }]);
       setAiTyping(false);
-      setAiStep(step + 1);
-      if (step >= 2) setAiShowMatches(true);
+      if (ready) setAiShowMatches(true);
       scrollBottom('aiScroll');
     }, 1400);
   };
@@ -468,6 +491,8 @@ export default function HaplyApp() {
     aiTyping,
     aiShowMatches,
     sendAi,
+    userProfile,
+    aiIntros: aiShowMatches ? buildIntros(userProfile, gsLooking) : [],
 
     matchPopId,
     closeMatchPop: () => setMatchPopId(null),
