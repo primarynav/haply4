@@ -37,6 +37,46 @@ export interface HaplyEvent {
   icon: string;
 }
 
+export interface HeroSlide {
+  /** File in public/images. Swap the file (same name) or point at a new one. */
+  src: string;
+  /** Screen-reader description of the photo. Must describe the real image. */
+  alt: string;
+  /** Short label on the slide's dot control. */
+  label: string;
+  /** Headline on the floating card while this slide is showing. */
+  caption: string;
+  sub: string;
+}
+
+// Hero rotation. Captions describe what each photo actually shows, so when you
+// replace a photo, update its alt/label/caption in the same entry.
+// Target activities for the 30–60 audience: a hike, a movie night, a café date.
+// Drop replacements in public/images and edit `src` — nothing else to change.
+export const HERO_SLIDES: HeroSlide[] = [
+  {
+    src: '/images/hero-1.jpg',
+    alt: 'Two people talking and smiling over coffee at a café window',
+    label: 'Coffee',
+    caption: 'Coffee that turns into three hours',
+    sub: 'Dating Again · a community favorite'
+  },
+  {
+    src: '/images/hero-2.jpg',
+    alt: 'A couple laughing together outdoors',
+    label: 'Laughing',
+    caption: 'Someone who laughs at the same things',
+    sub: 'Community · your people'
+  },
+  {
+    src: '/images/hero-3.jpg',
+    alt: 'A couple walking together at golden hour',
+    label: 'Walks',
+    caption: 'Long walks, no explaining needed',
+    sub: 'City groups · real meetups'
+  }
+];
+
 export const PROFILES: Profile[] = [
   { id: 1, name: 'Emily', gender: 'woman', age: 42, location: 'Seattle, WA', image: 'https://images.unsplash.com/photo-1690444963408-9573a17a8058?w=1080&q=80&fit=crop', bio: 'Divorced mom of two, yoga instructor, loves hiking and good coffee. Looking for genuine connection and someone who values mindfulness and outdoor adventures.', divorceYear: 2021, interests: ['Yoga', 'Hiking', 'Photography'], occupation: 'Yoga Instructor', education: "Bachelor's in Health Sciences", height: '5\'6"', children: '2 (ages 8 and 10)', lookingFor: 'A genuine connection with someone who understands the journey of starting over and values family, wellness, and authentic communication.' },
   { id: 2, name: 'Michael', gender: 'man', age: 38, location: 'Portland, OR', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1080&q=80&fit=crop', bio: 'Recently divorced dad, software engineer, enjoys cooking and weekend adventures. Ready for a fresh start with someone who appreciates good food and spontaneous road trips.', divorceYear: 2022, interests: ['Cooking', 'Technology', 'Travel'], occupation: 'Software Engineer', education: "Master's in Computer Science", height: '6\'0"', children: '1 (age 6)', lookingFor: "Looking for a partner who enjoys both cozy nights in and outdoor adventures. Someone who values family and isn't afraid of a little spontaneity." },

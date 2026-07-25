@@ -1,6 +1,7 @@
-import { EVENTS, GROUPS } from './data';
+import { useEffect, useState } from 'react';
+import { EVENTS, GROUPS, HERO_SLIDES } from './data';
 import type { H } from './HaplyApp';
-import { Ic, Logo, serif } from './ui';
+import { Ic, Logo, serif, usePrefersReducedMotion } from './ui';
 
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,4vw,32px)' };
 const eyebrow: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: '#e11d48', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 };
@@ -82,28 +83,7 @@ export function Landing({ h }: { h: H }) {
             </div>
             <p style={{ fontSize: 13, color: '#78716C', margin: 0 }}>Sign up with Google, Facebook, or Apple. Free — no credit card, ever.</p>
           </div>
-          <div style={{ position: 'relative' }}>
-            <div style={{ borderRadius: 20, overflow: 'hidden', aspectRatio: '4/4.4', boxShadow: '0 30px 60px -20px rgba(33,29,26,0.35)' }}>
-              <img src="/images/hero-2.jpg" alt="Two people laughing together" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            </div>
-            <div data-rs-cardr="1" style={{ position: 'absolute', top: 24, right: -20, background: '#fff', borderRadius: 14, boxShadow: '0 12px 32px rgba(33,29,26,0.16)', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #F0E9E2' }}>
-              <Ic name="location_on" fill size={20} color="#16a34a" />
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>Your city group</div>
-                <div style={{ fontSize: 12, color: '#78716C' }}>divorced locals, real meetups</div>
-              </div>
-            </div>
-            <div data-rs-cardl="1" style={{ position: 'absolute', bottom: -28, left: -28, background: '#fff', borderRadius: 14, boxShadow: '0 12px 32px rgba(33,29,26,0.16)', padding: '16px 18px', maxWidth: 290, border: '1px solid #F0E9E2' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>First date after divorce? You're not alone.</div>
-              <div style={{ fontSize: 12, color: '#78716C', marginBottom: 8 }}>Dating Again · a community topic</div>
-              <div style={{ display: 'flex', gap: 14, fontSize: 12, color: '#78716C' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Ic name="favorite" fill size={14} color="#e11d48" />
-                  cheer each other on
-                </span>
-              </div>
-            </div>
-          </div>
+          <HeroShowcase />
         </div>
       </section>
 
@@ -423,6 +403,92 @@ export function Landing({ h }: { h: H }) {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/** Hero photo rotation: crossfades between HERO_SLIDES, pausing on hover and for reduced motion. */
+function HeroShowcase() {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const reduced = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (reduced || paused || HERO_SLIDES.length < 2) return;
+    const t = setInterval(() => setIdx((i) => (i + 1) % HERO_SLIDES.length), 6000);
+    return () => clearInterval(t);
+  }, [reduced, paused]);
+
+  const slide = HERO_SLIDES[idx];
+
+  return (
+    <div
+      style={{ position: 'relative' }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+    >
+      <div style={{ position: 'relative', borderRadius: 20, overflow: 'hidden', aspectRatio: '4/4.4', boxShadow: '0 30px 60px -20px rgba(33,29,26,0.35)', background: '#F0E9E2' }}>
+        {HERO_SLIDES.map((s, i) => (
+          <img
+            key={s.src}
+            src={s.src}
+            alt={i === idx ? s.alt : ''}
+            aria-hidden={i !== idx}
+            loading={i === 0 ? 'eager' : 'lazy'}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              opacity: i === idx ? 1 : 0,
+              transition: reduced ? 'none' : 'opacity .8s ease'
+            }}
+          />
+        ))}
+        <div role="tablist" aria-label="Choose a photo" style={{ position: 'absolute', bottom: 16, right: 18, display: 'flex', alignItems: 'center', gap: 8, zIndex: 3 }}>
+          {HERO_SLIDES.map((s, i) => (
+            <button
+              key={s.src}
+              role="tab"
+              aria-selected={i === idx}
+              aria-label={s.label}
+              title={s.label}
+              onClick={() => setIdx(i)}
+              style={{
+                width: i === idx ? 24 : 10,
+                height: 10,
+                padding: 0,
+                borderRadius: 999,
+                border: 'none',
+                cursor: 'pointer',
+                background: i === idx ? '#e11d48' : 'rgba(255,255,255,0.8)',
+                boxShadow: '0 1px 4px rgba(33,29,26,0.35)',
+                transition: reduced ? 'none' : 'width .3s ease, background .3s ease'
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      <div data-rs-cardr="1" style={{ position: 'absolute', top: 24, right: -20, background: '#fff', borderRadius: 14, boxShadow: '0 12px 32px rgba(33,29,26,0.16)', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #F0E9E2' }}>
+        <Ic name="location_on" fill size={20} color="#16a34a" />
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Your city group</div>
+          <div style={{ fontSize: 12, color: '#78716C' }}>divorced locals, real meetups</div>
+        </div>
+      </div>
+      <div data-rs-cardl="1" style={{ position: 'absolute', bottom: -28, left: -28, background: '#fff', borderRadius: 14, boxShadow: '0 12px 32px rgba(33,29,26,0.16)', padding: '16px 18px', maxWidth: 290, border: '1px solid #F0E9E2' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, minHeight: 40 }}>{slide.caption}</div>
+        <div style={{ fontSize: 12, color: '#78716C', marginBottom: 8 }}>{slide.sub}</div>
+        <div style={{ display: 'flex', gap: 14, fontSize: 12, color: '#78716C' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Ic name="favorite" fill size={14} color="#e11d48" />
+            cheer each other on
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

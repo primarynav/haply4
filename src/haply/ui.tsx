@@ -1,4 +1,17 @@
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
+
+/** True when the viewer asked their OS to reduce motion. */
+export function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return reduced;
+}
 
 /** Material Symbols icon. `fill` renders the filled variant (.msf). */
 export function Ic({ name, fill, size, color, style }: { name: string; fill?: boolean; size: number; color?: string; style?: CSSProperties }) {
