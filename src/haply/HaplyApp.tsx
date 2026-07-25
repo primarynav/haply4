@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import './styles.css';
 import { CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
 import { absorbMessage, buildIntros, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
+import { createPost, fetchPosts, loadProfile, onAuth, saveProfile, setPostLike, signInEmail, signInProvider, signOutBackend, signUpEmail, type DbUser } from './backend';
 import { Landing } from './Landing';
 import { GetStarted } from './GetStarted';
 import { CommunityPublic } from './CommunityPublic';
@@ -16,6 +17,7 @@ export type AuthType = 'login' | 'signup';
 export interface User {
   name: string;
   email: string;
+  id?: string;
 }
 export interface ChatMsg {
   from: 'me' | 'them';
@@ -204,6 +206,12 @@ export default function HaplyApp() {
       /* non-persistent environment */
     }
   }, [userProfile]);
+  // Signed-in members also get their matchmaker profile saved to their account.
+  useEffect(() => {
+    const u = userRef.current;
+    if (u?.id) void saveProfile(u.id, u.name, userProfile, datingOn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile, datingOn]);
 
   const [detailId, setDetailId] = useState<number | null>(null);
   const [matchPopId, setMatchPopId] = useState<number | null>(null);
@@ -216,6 +224,10 @@ export default function HaplyApp() {
   const [postLikes, setPostLikes] = useState<Record<number, boolean>>({});
 
   useEffect(() => () => clearTimeout(toastT.current), []);
+
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
+  const emailFlowActive = useRef(false);
 
   const showToast = (msg: string) => {
     clearTimeout(toastT.current);
@@ -305,28 +317,75 @@ export default function HaplyApp() {
     }, 1400);
   };
 
-  const finishAuth = (u: User, intent: Intent, toastMsg: string) => {
-    setUser(u);
+  const refreshPosts = async (uid?: string) => {
+    const res = await fetchPosts(uid);
+    if (res) {
+      setPosts(res.posts);
+      setPostLikes(res.myLikes);
+    }
+  };
+  useEffect(() => {
+    void refreshPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Bring a signed-in member into the app: load their saved profile, land on the dashboard. */
+  const enterAsUser = async (u: DbUser, opts: { toast?: string; intent?: Intent; isNew?: boolean }) => {
+    setUser({ name: u.name, email: u.email, id: u.id });
     setAuthOpen(false);
     setAuthError('');
-    setDatingOn(intent !== 'community');
-    setDashTab(intent === 'dating' ? 'discover' : 'community');
+    const loaded = opts.isNew ? null : await loadProfile(u.id);
+    if (loaded) {
+      setUserProfile((prev) => (profileReady(loaded.profile) || loaded.profile.intro ? loaded.profile : prev));
+      setDatingOn(loaded.datingOn);
+      setDashTab('community');
+    } else {
+      const intent = opts.intent ?? gsIntent;
+      setDatingOn(intent !== 'community');
+      setDashTab(intent === 'dating' ? 'discover' : 'community');
+      void saveProfile(u.id, u.name, userProfile, intent !== 'community', intent || undefined, gsPostal || undefined);
+    }
     nav('dashboard');
-    showToast(toastMsg);
+    if (opts.toast) showToast(opts.toast);
+    void refreshPosts(u.id);
   };
 
-  const authSubmit = () => {
+  // Session restore on load + OAuth redirect handling.
+  useEffect(() => {
+    const off = onAuth((u) => {
+      if (u && !userRef.current && !emailFlowActive.current) {
+        void enterAsUser(u, {});
+      }
+    });
+    return off;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const authSubmit = async () => {
     if (!authEmail.trim() || !authPassword.trim() || (authType === 'signup' && !authName.trim())) {
       setAuthError('Please fill in all fields to continue.');
       return;
     }
-    const name = authType === 'signup' ? authName.trim() : authEmail.split('@')[0] || 'You';
-    const pretty = name.charAt(0).toUpperCase() + name.slice(1);
-    finishAuth(
-      { name: pretty, email: authEmail.trim() },
-      gsIntent,
-      authType === 'signup' ? `Welcome to Haply, ${pretty} — your free account is ready 💛` : `Welcome back, ${pretty}!`
-    );
+    emailFlowActive.current = true;
+    try {
+      if (authType === 'signup') {
+        const r = await signUpEmail(authName.trim(), authEmail.trim(), authPassword);
+        if (r.error) setAuthError(r.error);
+        else if (r.needsConfirm) {
+          setAuthError('');
+          setAuthType('login');
+          showToast('Almost there — check your email to confirm your account, then log in 💛');
+        } else if (r.user) {
+          await enterAsUser(r.user, { toast: `Welcome to Haply, ${r.user.name} — your free account is ready 💛`, intent: gsIntent, isNew: true });
+        }
+      } else {
+        const r = await signInEmail(authEmail.trim(), authPassword);
+        if (r.error) setAuthError(r.error);
+        else if (r.user) await enterAsUser(r.user, { toast: `Welcome back, ${r.user.name}!` });
+      }
+    } finally {
+      emailFlowActive.current = false;
+    }
   };
 
   const invite = () => {
@@ -365,7 +424,10 @@ export default function HaplyApp() {
       setAuthError('');
     },
     logout: () => {
+      void signOutBackend();
       setUser(null);
+      setUserProfile(emptyProfile());
+      setAiShowMatches(false);
       nav('home');
       showToast('You have been logged out');
     },
@@ -428,7 +490,11 @@ export default function HaplyApp() {
     setAuthPassword,
     authError,
     authSubmit,
-    socialAuth: (provider) => finishAuth({ name: 'Alex', email: 'alex@example.com' }, gsIntent, `Welcome, Alex! Signed in with ${provider}.`),
+    socialAuth: (provider) => {
+      void signInProvider(provider.toLowerCase() as 'google' | 'facebook' | 'apple').then(({ error }) => {
+        if (error) showToast(`${provider} sign-in isn't enabled yet — email works right now.`);
+      });
+    },
     closeAuth: () => setAuthOpen(false),
 
     dashTab,
@@ -501,7 +567,11 @@ export default function HaplyApp() {
     setCommCat,
     posts,
     postLikes,
-    togglePostLike: (id) => setPostLikes((pl) => ({ ...pl, [id]: !pl[id] })),
+    togglePostLike: (id) => {
+      const nowLiked = !postLikes[id];
+      setPostLikes((pl) => ({ ...pl, [id]: nowLiked }));
+      if (user?.id) void setPostLike(id, user.id, nowLiked);
+    },
     postDraft,
     setPostDraft,
     submitPost: () => {
@@ -516,12 +586,21 @@ export default function HaplyApp() {
       }
       const cat = commCat === 'All Topics' ? 'Divorce Support' : commCat;
       const title = text.length > 60 ? text.slice(0, 57) + '…' : text;
-      setPosts((ps) => [
-        { id: Date.now(), name: user ? user.name : 'You', cat, time: 'Just now', title, body: text.length > 60 ? text : 'Posted to the Haply community.', likes: 0, comments: 0 },
-        ...ps
-      ]);
+      const body = text.length > 60 ? text : 'Posted to the Haply community.';
       setPostDraft('');
-      showToast('Posted to the community 💬');
+      if (user?.id) {
+        void createPost(user.id, user.name, cat, title, body).then((row) => {
+          if (row) {
+            setPosts((ps) => [row, ...ps.filter((p) => !p.time.startsWith('Sending'))]);
+            showToast('Posted to the community 💬');
+          } else {
+            showToast("Couldn't reach the community right now — please try again.");
+          }
+        });
+      } else {
+        setPosts((ps) => [{ id: Date.now(), name: 'You', cat, time: 'Just now', title, body, likes: 0, comments: 0 }, ...ps]);
+        showToast('Posted to the community 💬');
+      }
     },
 
     prof
