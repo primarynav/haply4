@@ -3,6 +3,7 @@ import './styles.css';
 import { CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
 import { absorbMessage, buildIntros, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
 import { createPost, fetchPosts, loadProfile, onAuth, saveProfile, setPostLike, signInEmail, signInProvider, signOutBackend, signUpEmail, type DbUser } from './backend';
+import { aiTurn } from './aiMatchmaker';
 import { Landing } from './Landing';
 import { GetStarted } from './GetStarted';
 import { CommunityPublic } from './CommunityPublic';
@@ -295,6 +296,11 @@ export default function HaplyApp() {
     }, 1500);
   };
 
+  /**
+   * Claude reads the message when the matchmaker function is available; the
+   * local rules engine answers otherwise. Either way the profile it produces is
+   * what the app filters on, so preferences are always enforced in code.
+   */
   const sendAi = () => {
     const text = aiDraft.trim();
     if (!text || aiTyping) return;
@@ -302,21 +308,37 @@ export default function HaplyApp() {
       showToast('Our safety bot flagged that wording — Haply runs on kindness. Please rephrase 💛');
       return;
     }
-    setAiMsgs((m) => [...m, { from: 'me', text }]);
+    const history: AiMsg[] = [...aiMsgs, { from: 'me', text }];
+    setAiMsgs(history);
     setAiDraft('');
     setAiTyping(true);
     scrollBottom('aiScroll');
-    const absorbed = absorbMessage(text, userProfile);
-    const ready = profileReady(absorbed.profile);
-    const firstReveal = ready && !aiShowMatches;
-    const reply = matchmakerReply(absorbed, firstReveal);
-    setUserProfile({ ...absorbed.profile, lastAsked: reply.lastAsked });
-    setTimeout(() => {
-      setAiMsgs((m) => [...m, { from: 'ai', text: reply.text }]);
-      setAiTyping(false);
-      if (ready) setAiShowMatches(true);
-      scrollBottom('aiScroll');
-    }, 1400);
+
+    const started = Date.now();
+    const finish = (profile: UserProfile, replyText: string) => {
+      const ready = profileReady(profile);
+      setUserProfile(profile);
+      // Keep a beat of "typing" so a fast reply doesn't snap in unnaturally.
+      setTimeout(
+        () => {
+          setAiMsgs((m) => [...m, { from: 'ai', text: replyText }]);
+          setAiTyping(false);
+          if (ready) setAiShowMatches(true);
+          scrollBottom('aiScroll');
+        },
+        Math.max(0, 700 - (Date.now() - started))
+      );
+    };
+
+    void aiTurn(history, userProfile).then((ai) => {
+      if (ai) {
+        finish(ai.profile, ai.reply);
+        return;
+      }
+      const absorbed = absorbMessage(text, userProfile);
+      const reply = matchmakerReply(absorbed, profileReady(absorbed.profile) && !aiShowMatches);
+      finish({ ...absorbed.profile, lastAsked: reply.lastAsked }, reply.text);
+    });
   };
 
   const refreshPosts = async (uid?: string) => {
