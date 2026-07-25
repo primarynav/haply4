@@ -27,15 +27,13 @@ export interface Post {
 
 export interface CityGroup {
   city: string;
-  members: string;
-  events: number;
+  vibe: string;
 }
 
 export interface HaplyEvent {
   name: string;
-  when: string;
+  sub: string;
   icon: string;
-  going: number;
 }
 
 export const PROFILES: Profile[] = [
@@ -63,10 +61,10 @@ export const CHAT_REPLIES: Record<number, string[]> = {
 };
 
 export const POSTS: Post[] = [
-  { id: 1, name: 'Jennifer M.', cat: 'Success Stories', time: '2 hours ago', title: 'One year on Haply — engaged last weekend! 💍', body: "I almost deleted the app three times. So glad I didn't. To everyone still healing: take your time, but don't close the door.", likes: 128, comments: 34 },
-  { id: 2, name: 'David R.', cat: 'Co-Parenting', time: '5 hours ago', title: 'How do you introduce a new partner to your kids?', body: "Been seeing someone wonderful for 4 months. My kids (7 and 10) don't know yet. Would love to hear how others handled the timing.", likes: 56, comments: 41 },
-  { id: 3, name: 'Amanda S.', cat: 'Divorce Support', time: '1 day ago', title: 'Finalized yesterday. Feeling everything at once.', body: 'Relief, grief, freedom, fear — all in the same hour. Is that normal? Tell me it gets easier.', likes: 203, comments: 87 },
-  { id: 4, name: 'Marcus T.', cat: 'Dating Again', time: '2 days ago', title: 'First date in 12 years — it went great!', body: "I was so nervous I rehearsed saying hello in the car. She was nervous too. We laughed about it for two hours. There's hope, people.", likes: 174, comments: 52 }
+  { id: 1, name: 'Haply Team', cat: 'Divorce Support', time: 'Pinned', title: 'Welcome to Haply — introduce yourself', body: 'Tell the community a little about where you are in your journey. New here? Start with hello — someone will be glad you did.', likes: 0, comments: 0 },
+  { id: 2, name: 'Haply Team', cat: 'Co-Parenting', time: 'Pinned', title: 'Co-parents: what is working for you?', body: 'Schedules, hand-offs, holidays — share what has made two-home parenting smoother for your family.', likes: 0, comments: 0 },
+  { id: 3, name: 'Haply Team', cat: 'Dating Again', time: 'Pinned', title: 'What does "ready to date" feel like?', body: "There's no deadline. Share how you knew it was time — or ask the community how they knew.", likes: 0, comments: 0 },
+  { id: 4, name: 'Haply Team', cat: 'Self-Care', time: 'Pinned', title: 'One small win this week', body: 'Big or small, share a win. This thread is for cheering each other on.', likes: 0, comments: 0 }
 ];
 
 export const CATS = ['All Topics', 'Divorce Support', 'Co-Parenting', 'Dating Again', 'Success Stories', 'Self-Care'];
@@ -80,19 +78,27 @@ export const AV_COLORS: [string, string][] = [
 ];
 
 export const GROUPS: CityGroup[] = [
-  { city: 'Seattle', members: '2,406', events: 9 },
-  { city: 'Austin', members: '3,014', events: 11 },
-  { city: 'Chicago', members: '2,871', events: 8 },
-  { city: 'Portland', members: '1,882', events: 7 },
-  { city: 'Denver', members: '1,655', events: 6 },
-  { city: 'San Francisco', members: '2,238', events: 9 }
+  { city: 'Seattle', vibe: 'Coffee walks & waterfront meetups' },
+  { city: 'Austin', vibe: 'Live music & taco nights' },
+  { city: 'Chicago', vibe: 'Supper clubs & lakefront walks' },
+  { city: 'Portland', vibe: 'Group hikes & book clubs' },
+  { city: 'Denver', vibe: 'Trail days & weekend brunches' },
+  { city: 'San Francisco', vibe: 'Coastal walks & wine nights' }
 ];
 
 export const EVENTS: HaplyEvent[] = [
-  { name: 'Divorced & Dining', when: 'Seattle · Thu 7pm', icon: 'restaurant', going: 18 },
-  { name: 'Trail Talk: Parents Hike', when: 'Denver · Sat 9am', icon: 'hiking', going: 24 },
-  { name: 'New Chapter Book Club', when: 'Online · Wed 6pm', icon: 'menu_book', going: 41 }
+  { name: 'Dinner clubs', sub: 'Meet over a good meal', icon: 'restaurant' },
+  { name: 'Group hikes', sub: 'Fresh air with your people', icon: 'hiking' },
+  { name: 'Book clubs', sub: 'New chapters, literally', icon: 'menu_book' }
 ];
+
+/** Lightweight respectful-language screen — placeholder for server-side moderation bots. */
+const FLAGGED = ['fuck', 'shit', 'bitch', 'asshole', 'cunt', 'whore', 'slut', 'bastard', 'retard', 'faggot', 'kill yourself', 'kys', 'nazi', 'rape'];
+export function violatesLanguagePolicy(text: string): boolean {
+  const words = text.toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/).filter(Boolean);
+  const t = ' ' + words.join(' ') + ' ';
+  return FLAGGED.some((w) => (w.includes(' ') ? t.includes(' ' + w + ' ') : words.some((word) => word === w || word.startsWith(w))));
+}
 
 export const AI_MATCH_INTROS: { id: number; pct: string; reason: string }[] = [
   { id: 2, pct: '94% fit', reason: 'Strong co-parenting values and a shared love of cooking and travel.' },

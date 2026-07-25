@@ -1,4 +1,4 @@
-import { AV_COLORS, EVENTS, GROUPS, POSTS } from './data';
+import { EVENTS, GROUPS } from './data';
 import type { H } from './HaplyApp';
 import { Ic, Logo, serif } from './ui';
 
@@ -13,12 +13,12 @@ export function Landing({ h }: { h: H }) {
       <div style={{ background: '#211D1A', color: '#E7E0DA', padding: '9px 32px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, fontSize: 13 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Ic name="verified" fill size={15} color="#4ade80" />
-          Every member verified divorced
+          Real sign-ins, real people
         </span>
         <span style={{ opacity: 0.4 }}>•</span>
         <span>21+ only</span>
         <span style={{ opacity: 0.4 }}>•</span>
-        <span>Human-moderated</span>
+        <span>Moderated for respect</span>
       </div>
 
       {/* sticky nav */}
@@ -28,7 +28,7 @@ export function Landing({ h }: { h: H }) {
             <Logo size={30} color="#e11d48" />
             <div>
               <h1 style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.1 }}>Haply</h1>
-              <p style={{ fontSize: 11, color: '#78716C', margin: 0, letterSpacing: '.02em' }}>The divorced community</p>
+              <p style={{ fontSize: 11, color: '#78716C', margin: 0, letterSpacing: '.02em' }}>The divorced dating community</p>
             </div>
           </div>
           <nav style={{ display: 'flex', alignItems: 'center', gap: 28 }} data-rs-hide="1">
@@ -36,7 +36,7 @@ export function Landing({ h }: { h: H }) {
               [
                 ['Community', 'community-anchor'],
                 ['City groups', 'groups-anchor'],
-                ['Verification', 'trust-anchor'],
+                ['Trust & privacy', 'trust-anchor'],
                 ['Dating', 'dating-anchor']
               ] as const
             ).map(([label, anchor]) => (
@@ -62,7 +62,7 @@ export function Landing({ h }: { h: H }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', padding: '7px 14px', borderRadius: 999, alignSelf: 'flex-start', fontSize: 13, fontWeight: 600 }}>
               <Ic name="verified" fill size={15} />
-              For divorced people only · 21+
+              For divorced & separated people · 21+
             </div>
             <h1 style={{ fontFamily: serif, fontSize: 'clamp(38px,7vw,62px)', fontWeight: 600, lineHeight: 1.05, margin: 0, letterSpacing: '-0.01em' }}>
               Divorced.
@@ -70,7 +70,7 @@ export function Landing({ h }: { h: H }) {
               Not done.
             </h1>
             <p style={{ fontSize: 19, color: '#57534E', lineHeight: 1.65, margin: 0, maxWidth: 520 }}>
-              Haply is the largest community of divorced people — <strong style={{ color: '#211D1A' }}>25,000+ members</strong> who get it. Talk it out, find your people in your city, and when you're ready, date someone who actually understands.
+              Haply is the dating community built for divorced people. Join free, talk it out with <strong style={{ color: '#211D1A' }}>people who get it</strong>, meet others in your city — and when you're ready, date someone who actually understands.
             </p>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <button onClick={h.goGetStarted} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '15px 32px', fontSize: 17, fontWeight: 600, cursor: 'pointer', boxShadow: '0 8px 24px rgba(225,29,72,0.25)' }}>
@@ -80,7 +80,7 @@ export function Landing({ h }: { h: H }) {
                 I'm ready to date
               </button>
             </div>
-            <p style={{ fontSize: 13, color: '#78716C', margin: 0 }}>No swiping required. Community is free, forever.</p>
+            <p style={{ fontSize: 13, color: '#78716C', margin: 0 }}>Sign up with Google, Facebook, or Apple. Free — no credit card, ever.</p>
           </div>
           <div style={{ position: 'relative' }}>
             <div style={{ borderRadius: 20, overflow: 'hidden', aspectRatio: '4/4.4', boxShadow: '0 30px 60px -20px rgba(33,29,26,0.35)' }}>
@@ -89,21 +89,17 @@ export function Landing({ h }: { h: H }) {
             <div data-rs-cardr="1" style={{ position: 'absolute', top: 24, right: -20, background: '#fff', borderRadius: 14, boxShadow: '0 12px 32px rgba(33,29,26,0.16)', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #F0E9E2' }}>
               <Ic name="location_on" fill size={20} color="#16a34a" />
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>2,406 members</div>
-                <div style={{ fontSize: 12, color: '#78716C' }}>in the Seattle group</div>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>Your city group</div>
+                <div style={{ fontSize: 12, color: '#78716C' }}>divorced locals, real meetups</div>
               </div>
             </div>
             <div data-rs-cardl="1" style={{ position: 'absolute', bottom: -28, left: -28, background: '#fff', borderRadius: 14, boxShadow: '0 12px 32px rgba(33,29,26,0.16)', padding: '16px 18px', maxWidth: 290, border: '1px solid #F0E9E2' }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>First date in 12 years — it went great!</div>
-              <div style={{ fontSize: 12, color: '#78716C', marginBottom: 8 }}>Marcus T. · Dating Again</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>First date after divorce? You're not alone.</div>
+              <div style={{ fontSize: 12, color: '#78716C', marginBottom: 8 }}>Dating Again · a community topic</div>
               <div style={{ display: 'flex', gap: 14, fontSize: 12, color: '#78716C' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Ic name="favorite" fill size={14} color="#e11d48" />
-                  174
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Ic name="chat_bubble" size={14} />
-                  52 replies
+                  cheer each other on
                 </span>
               </div>
             </div>
@@ -111,15 +107,15 @@ export function Landing({ h }: { h: H }) {
         </div>
       </section>
 
-      {/* stat band */}
+      {/* value band */}
       <section style={{ background: '#211D1A', color: '#FAF7F4', padding: '36px 0' }}>
         <div style={{ ...container, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 24, textAlign: 'center' }} data-rs-2="1">
           {(
             [
-              ['25,412', 'verified divorced members'],
-              ['180+', 'city groups'],
-              ['92', 'meetups this month'],
-              ['1,200+', 'new beginnings']
+              ['Free', 'community membership, forever'],
+              ['Verified', 'sign in with Google, Facebook, or Apple'],
+              ['Moderated', 'AI safety bots + human review'],
+              ['Private', 'your story stays in the community']
             ] as const
           ).map(([num, label]) => (
             <div key={label}>
@@ -137,37 +133,32 @@ export function Landing({ h }: { h: H }) {
             <div style={eyebrow}>The community</div>
             <h2 style={h2}>You're among people who get it</h2>
             <p style={{ fontSize: 18, color: '#57534E', lineHeight: 1.6, margin: 0 }}>
-              12,304 conversations this week — co-parenting advice, first-date nerves, paperwork wins, and everything in between. No explaining your story from scratch. Everyone here has one too.
+              Co-parenting advice, first-date nerves, paperwork wins — talk it through with people who've been there. No explaining your story from scratch. Everyone here has one too.
             </p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(270px,1fr))', gap: 20 }}>
-            {POSTS.slice(0, 3).map((lp, i) => {
-              const av = AV_COLORS[i % AV_COLORS.length];
-              return (
-                <div key={lp.id} onClick={h.goCommunity} className="hv-lift" style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: 24, cursor: 'pointer', transition: 'all .2s', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, background: av[0], color: av[1] }}>{lp.name.charAt(0)}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600 }}>{lp.name}</div>
-                      <div style={{ fontSize: 12, color: '#78716C' }}>{lp.time}</div>
-                    </div>
-                    <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>{lp.cat}</span>
+            {(
+              [
+                ['diversity_1', '#FFF1F2', '#e11d48', 'Divorce Support', 'A soft place to land', 'Process the hard days with people who understand — from paperwork to the first holiday on your own.'],
+                ['child_care', '#F0FDF4', '#16a34a', 'Co-Parenting', 'Parenting across two homes', 'Schedules, introductions, and raising great kids after divorce — advice from parents living it.'],
+                ['favorite', '#FEF3C7', '#b45309', 'Dating Again', 'Ready when you are', 'First-date nerves to new beginnings — cheer each other on. No judgment, no pressure, no deadline.']
+              ] as const
+            ).map(([icon, iconBg, iconColor, cat, title, body]) => (
+              <div key={cat} onClick={h.goCommunity} className="hv-lift" style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: 24, cursor: 'pointer', transition: 'all .2s', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: iconBg }}>
+                    <Ic name={icon} fill size={20} color={iconColor} />
                   </div>
-                  <h3 style={{ fontSize: 17, fontWeight: 600, margin: 0, lineHeight: 1.35 }}>{lp.title}</h3>
-                  <p style={{ fontSize: 14, color: '#57534E', margin: 0, lineHeight: 1.6 }}>{lp.body}</p>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 13, color: '#78716C', marginTop: 'auto' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Ic name="favorite" fill size={15} color="#e11d48" />
-                      {lp.likes}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Ic name="chat_bubble" size={15} />
-                      {lp.comments} replies
-                    </span>
-                  </div>
+                  <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, marginLeft: 'auto' }}>{cat}</span>
                 </div>
-              );
-            })}
+                <h3 style={{ fontSize: 17, fontWeight: 600, margin: 0, lineHeight: 1.35 }}>{title}</h3>
+                <p style={{ fontSize: 14, color: '#57534E', margin: 0, lineHeight: 1.6 }}>{body}</p>
+                <div style={{ display: 'flex', gap: 6, fontSize: 13, color: '#e11d48', fontWeight: 600, marginTop: 'auto', alignItems: 'center' }}>
+                  Join the conversation
+                  <Ic name="arrow_forward" size={15} />
+                </div>
+              </div>
+            ))}
           </div>
           <div style={{ textAlign: 'center', marginTop: 36 }}>
             <button onClick={h.goCommunity} className="hvb-rose50" style={{ background: 'transparent', color: '#e11d48', border: '1.5px solid #FECDD3', borderRadius: 999, padding: '12px 28px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
@@ -183,9 +174,9 @@ export function Landing({ h }: { h: H }) {
           <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 24, padding: 'clamp(24px,5vw,56px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 40 }}>
             {(
               [
-                ['#F0FDF4', '#16a34a', 'verified', 'STEP 1', "Verify you're divorced", "A quick, private check — reviewed by a human within 24 hours. It's what keeps Haply genuinely ours."],
-                ['#FFF1F2', '#e11d48', 'diversity_1', 'STEP 2', "Join your city's group", "Conversations, meetups, and people nearby who've been through it. Community is free — no pressure to date, ever."],
-                ['#FEF3C7', '#b45309', 'favorite', 'STEP 3', "Date when you're ready", "Flip on dating whenever it feels right. Every profile you'll see is verified divorced — no explaining, no judgment."]
+                ['#F0FDF4', '#16a34a', 'verified', 'STEP 1', 'Sign up free in seconds', "Continue with Google, Facebook, or Apple — real accounts keep the community real. Confirm you're 21+ and divorced or separated, and you're in."],
+                ['#FFF1F2', '#e11d48', 'diversity_1', 'STEP 2', "Join your city's group", "Post topics, comment, and meet people nearby who've been through it. Community is free — no pressure to date, ever."],
+                ['#FEF3C7', '#b45309', 'favorite', 'STEP 3', "Date when you're ready", 'Flip on dating whenever it feels right. Everyone you meet signed up the same way you did — no explaining, no judgment.']
               ] as const
             ).map(([bg, color, icon, step, title, body]) => (
               <div key={step} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -201,21 +192,21 @@ export function Landing({ h }: { h: H }) {
         </div>
       </section>
 
-      {/* trust / verification */}
+      {/* trust & privacy */}
       <section id="trust-anchor" style={{ background: '#1C2B22', color: '#F2F7F3', padding: '88px 0' }}>
         <div style={{ ...container, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }} data-rs="1">
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>Verification</div>
-            <h2 style={{ fontFamily: serif, fontSize: 'clamp(30px,4.5vw,42px)', fontWeight: 600, margin: '0 0 18px', lineHeight: 1.15 }}>The only place where everyone is actually divorced</h2>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 12 }}>Trust & privacy</div>
+            <h2 style={{ fontFamily: serif, fontSize: 'clamp(30px,4.5vw,42px)', fontWeight: 600, margin: '0 0 18px', lineHeight: 1.15 }}>Built on trust. Designed for privacy.</h2>
             <p style={{ fontSize: 17, color: '#B7C8BC', lineHeight: 1.7, margin: '0 0 28px' }}>
-              On other apps, "divorced" is a checkbox anyone can tick. On Haply, it's verified. No married people passing through. No scammers. No one who'll flinch at your story.
+              A community like this only works if it feels safe. That's why every account is tied to a real sign-in, every space is watched over, and your business stays your business.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {(
                 [
-                  ['task_alt', 'Divorce verification', 'Decree, court record, or attestation — reviewed privately by a human, never shown on your profile beyond the badge.'],
-                  ['badge', 'Photo + ID match', 'Every face is real, every member is 21 or older.'],
-                  ['shield_person', 'Human moderation', "Real people review reports around the clock — because this community's safety is the product."]
+                  ['task_alt', 'Verified sign-in', 'Every member joins with a real Google, Facebook, or Apple account — no anonymous throwaways.'],
+                  ['shield_person', 'AI safety bots + human moderation', 'Automated monitoring flags unsafe or disrespectful language before it spreads, and real people review reports.'],
+                  ['lock', 'Private by default', 'We never sell your data. What you share on Haply stays on Haply — and daters only see you if you opt in.']
                 ] as const
               ).map(([icon, title, body]) => (
                 <div key={icon} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -231,17 +222,19 @@ export function Landing({ h }: { h: H }) {
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div style={{ background: '#233829', border: '1px solid #2F4A37', borderRadius: 20, padding: 36, maxWidth: 380, width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
-                <img src="https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&q=80&fit=crop" alt="Verified member" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid #4ade80' }} />
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#1C2B22', border: '3px solid #4ade80', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Logo size={32} color="#4ade80" />
+                </div>
                 <div>
-                  <div style={{ fontSize: 18, fontWeight: 700 }}>Sarah, 35</div>
-                  <div style={{ fontSize: 13, color: '#B7C8BC' }}>San Francisco</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>Every Haply profile</div>
+                  <div style={{ fontSize: 13, color: '#B7C8BC' }}>the same protections, for everyone</div>
                 </div>
               </div>
               {(
                 [
-                  ['verified', 'Verified divorced', 'Finalized 2020 · reviewed by our team'],
-                  ['badge', 'Photo & ID confirmed', 'Age 21+ confirmed'],
-                  ['diversity_1', 'SF group member', 'Joined 8 months ago · 42 posts']
+                  ['verified', 'Real sign-in required', 'Google, Facebook, or Apple ID'],
+                  ['badge', '21+ and divorced or separated', 'Confirmed at signup'],
+                  ['lock', 'Members-only visibility', 'Your profile is never public on the web']
                 ] as const
               ).map(([icon, title, sub], i) => (
                 <div key={icon} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#1C2B22', border: '1px solid #2F4A37', borderRadius: 12, padding: '14px 16px', marginBottom: i < 2 ? 12 : 0 }}>
@@ -264,7 +257,7 @@ export function Landing({ h }: { h: H }) {
             <div style={{ maxWidth: 560 }}>
               <div style={eyebrow}>City groups</div>
               <h2 style={h2}>Your people, nearby</h2>
-              <p style={{ fontSize: 18, color: '#57534E', lineHeight: 1.6, margin: 0 }}>180+ local groups with real-world meetups — dinners, hikes, book clubs. Because the best thing after divorce is a full calendar.</p>
+              <p style={{ fontSize: 18, color: '#57534E', lineHeight: 1.6, margin: 0 }}>Local groups built around real-world meetups — dinners, hikes, book clubs. Because the best thing after divorce is a full calendar.</p>
             </div>
             <button onClick={h.goGetStarted} className="hvb-ink2" style={{ background: '#211D1A', color: '#fff', border: 'none', borderRadius: 999, padding: '13px 26px', fontSize: 15, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
               Find your city
@@ -278,9 +271,7 @@ export function Landing({ h }: { h: H }) {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 17, fontWeight: 700 }}>{g.city}</div>
-                  <div style={{ fontSize: 13, color: '#78716C' }}>
-                    {g.members} members · {g.events} events this month
-                  </div>
+                  <div style={{ fontSize: 13, color: '#78716C' }}>{g.vibe}</div>
                 </div>
                 <Ic name="arrow_forward" size={20} color="#A8A29E" />
               </div>
@@ -291,7 +282,7 @@ export function Landing({ h }: { h: H }) {
               <div key={ev.name} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#F0E9E2', borderRadius: 999, padding: '9px 18px 9px 12px' }}>
                 <Ic name={ev.icon} fill size={18} color="#b45309" />
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{ev.name}</span>
-                <span style={{ fontSize: 13, color: '#78716C' }}>{ev.when}</span>
+                <span style={{ fontSize: 13, color: '#78716C' }}>{ev.sub}</span>
               </div>
             ))}
           </div>
@@ -306,28 +297,29 @@ export function Landing({ h }: { h: H }) {
               <img src="/images/hero-1.jpg" alt="Couple on a date" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div style={{ position: 'absolute', bottom: 24, left: 24, right: 24, background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', borderRadius: 14, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80&fit=crop" alt="Michael" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#FFF1F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Ic name="favorite" fill size={24} color="#e11d48" />
+              </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  Michael, 38 <Ic name="verified" fill size={15} color="#16a34a" />
+                  Dating, on your terms <Ic name="verified" fill size={15} color="#16a34a" />
                 </div>
-                <div style={{ fontSize: 13, color: '#57534E' }}>Verified divorced · Portland · Dad of one</div>
+                <div style={{ fontSize: 13, color: '#57534E' }}>Opt in when you're ready · community comes first</div>
               </div>
-              <Ic name="favorite" fill size={24} color="#e11d48" />
             </div>
           </div>
           <div>
             <div style={eyebrow}>When you're ready</div>
             <h2 style={{ ...h2, margin: '0 0 18px' }}>Date on your timeline, not an algorithm's</h2>
             <p style={{ fontSize: 17, color: '#57534E', lineHeight: 1.7, margin: '0 0 28px' }}>
-              Dating on Haply is opt-in. Keep a community-only profile as long as you like — and when you flip dating on, everyone you meet has a verified story like yours.
+              Dating on Haply is opt-in. Keep a community-only profile as long as you like — and when you flip dating on, everyone you meet understands the journey, because they're on it too.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginBottom: 32 }}>
               {(
                 [
                   ['toggle_on', 'Community-only mode', 'Be here to heal and connect — invisible to daters until you choose otherwise.'],
                   ['forum', 'A matchmaker you can talk to', 'Tell our AI matchmaker what matters — kids, values, pace — and it introduces people who fit. No endless swiping.'],
-                  ['verified', 'Every profile verified', '1,200+ couples found each other here. All of them started with "you get it too?"']
+                  ['verified', 'Trust, front and center', "Real sign-ins, moderated spaces, and members who confirmed they're divorced or separated — just like you."]
                 ] as const
               ).map(([icon, title, body]) => (
                 <div key={icon} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
@@ -356,10 +348,10 @@ export function Landing({ h }: { h: H }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 20 }}>
             {(
               [
-                ['Who can join Haply?', "Only divorced or legally separated people aged 21 and over. Every member's status is verified by a human reviewer before their profile goes live."],
-                ['Is Haply free?', 'Community membership is free forever — conversations, city groups, and meetups. Dating features are optional and opt-in.'],
-                ['How does verification work?', 'Upload a decree, court record, or signed attestation. We review it privately within 24 hours — other members only ever see your badge, never your documents.'],
-                ['Do I have to date?', 'No. Community-only mode keeps you invisible to daters until you turn dating on — many members are here purely for support and meetups.']
+                ['Who can join Haply?', 'Divorced or legally separated people aged 21 and over. Membership is free — sign up with Google, Facebook, or Apple in seconds.'],
+                ['Is Haply free?', 'Yes. Joining, posting, city groups, and meeting people are free. Optional premium features may come later, but community membership stays free.'],
+                ['How does Haply keep members safe?', 'Every member joins with a real Google, Facebook, or Apple account, and AI safety bots plus human moderators watch over every space for safe, respectful language.'],
+                ['What about my privacy?', 'Trust and privacy come first. Your data is never sold, your posts stay inside the community, and daters only see you if you turn dating on.']
               ] as const
             ).map(([q, a]) => (
               <div key={q} style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: 24 }}>
@@ -377,7 +369,7 @@ export function Landing({ h }: { h: H }) {
           <div style={{ background: 'linear-gradient(135deg,#e11d48,#be123c)', borderRadius: 24, padding: 'clamp(28px,5vw,56px)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 32, color: '#fff' }}>
             <div style={{ maxWidth: 600 }}>
               <h2 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, margin: '0 0 10px', lineHeight: 1.2 }}>Know someone starting over?</h2>
-              <p style={{ fontSize: 16, lineHeight: 1.6, margin: 0, opacity: 0.9 }}>Most members join because a friend said "you need to be here." Give someone a place to land — membership is free.</p>
+              <p style={{ fontSize: 16, lineHeight: 1.6, margin: 0, opacity: 0.9 }}>The best communities grow friend by friend. Give someone a place to land — membership is free.</p>
             </div>
             <button onClick={h.invite} className="hvb-rose50" style={{ background: '#fff', color: '#be123c', border: 'none', borderRadius: 999, padding: '15px 30px', fontSize: 16, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 10 }}>
               <Ic name="content_copy" size={20} />
@@ -396,7 +388,7 @@ export function Landing({ h }: { h: H }) {
                 <Logo size={26} color="#fb7185" />
                 <span style={{ fontFamily: serif, fontSize: 20, fontWeight: 700 }}>Haply</span>
               </div>
-              <p style={{ color: '#A8A29E', margin: 0, fontSize: 14, lineHeight: 1.6, maxWidth: 300 }}>The largest community of divorced people. Verified members, real support, and second chances — for people 21 and over.</p>
+              <p style={{ color: '#A8A29E', margin: 0, fontSize: 14, lineHeight: 1.6, maxWidth: 300 }}>The divorced dating community. Real people, real support, and second chances — free to join, for people 21 and over.</p>
             </div>
             <FooterCol
               title="Community"
@@ -410,7 +402,7 @@ export function Landing({ h }: { h: H }) {
             <FooterCol
               title="Dating"
               links={[
-                ['Verification', () => h.scrollAnchor('trust-anchor')],
+                ['Trust & privacy', () => h.scrollAnchor('trust-anchor')],
                 ['How dating works', () => h.scrollAnchor('dating-anchor')],
                 ['Success stories', h.stubPage]
               ]}
@@ -427,7 +419,7 @@ export function Landing({ h }: { h: H }) {
           </div>
           <div style={{ borderTop: '1px solid #3A342F', paddingTop: 24, display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', color: '#A8A29E', fontSize: 13 }}>
             <span>© 2026 Haply. Made with love for second chances.</span>
-            <span>21+ only · Every member verified divorced</span>
+            <span>21+ only · Free to join · Moderated for respect</span>
           </div>
         </div>
       </footer>

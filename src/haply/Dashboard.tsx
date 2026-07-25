@@ -105,30 +105,16 @@ function CommunityTab({ h }: { h: H }) {
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 700 }}>Seattle group</div>
-              <div style={{ fontSize: 12, color: '#78716C' }}>2,406 members · you're in</div>
+              <div style={{ fontSize: 12, color: '#78716C' }}>your city's community · you're in</div>
             </div>
           </div>
-          <div style={{ display: 'flex', marginBottom: 12 }}>
-            {(
-              [
-                ['J', '#FFE4E6', '#be123c', 12],
-                ['D', '#E0E7FF', '#4338ca', 12],
-                ['A', '#DCFCE7', '#15803d', 12],
-                ['M', '#FEF3C7', '#b45309', 12],
-                ['+2k', '#F0E9E2', '#57534E', 10]
-              ] as const
-            ).map(([initial, bg, color, fs], i) => (
-              <div key={initial} style={{ width: 28, height: 28, borderRadius: '50%', background: bg, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: fs, fontWeight: 700, border: '2px solid #fff', marginLeft: i > 0 ? -8 : 0 }}>
-                {initial}
-              </div>
-            ))}
-          </div>
+          <p style={{ fontSize: 13, color: '#57534E', margin: '0 0 12px', lineHeight: 1.5 }}>Divorced locals, real meetups. Say hello in the group chat — someone will be glad you did.</p>
           <button onClick={h.groupToast} className="hvb-ink2" style={{ width: '100%', background: '#211D1A', color: '#fff', border: 'none', borderRadius: 999, padding: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             Open group chat
           </button>
         </div>
         <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: 20 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 14px' }}>Upcoming near you</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 14px' }}>Meetups to look forward to</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {EVENTS.map((de) => (
               <div key={de.name} onClick={() => h.rsvp(de.name)} className="hvb-cream" style={{ display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', borderRadius: 10, padding: 4, margin: -4 }}>
@@ -137,9 +123,7 @@ function CommunityTab({ h }: { h: H }) {
                 </div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.3 }}>{de.name}</div>
-                  <div style={{ fontSize: 12, color: '#78716C' }}>
-                    {de.when} · {de.going} going
-                  </div>
+                  <div style={{ fontSize: 12, color: '#78716C' }}>{de.sub}</div>
                 </div>
                 <Ic name="arrow_forward" size={18} color="#A8A29E" />
               </div>
@@ -180,7 +164,7 @@ function DiscoverTab({ h }: { h: H }) {
             <div onClick={() => h.openDetail(p.id)} style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}>
               <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent,transparent 55%,rgba(20,16,14,0.72))' }} />
-              <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', color: '#fff', fontSize: 12, padding: '6px 12px', borderRadius: 999 }}>Tap to view profile</div>
+              <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', color: '#fff', fontSize: 12, padding: '6px 12px', borderRadius: 999 }}>Sample profile · tap to view</div>
             </div>
             {matched && (
               <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
@@ -442,7 +426,7 @@ function ProfileTab({ h }: { h: H }) {
               {h.userName}{' '}
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
                 <Ic name="verified" fill size={13} />
-                Verified divorced
+                Verified member
               </span>
             </h3>
             <p style={{ color: '#78716C', margin: '4px 0 10px', fontSize: 14 }}>{h.userEmail} · Seattle group</p>

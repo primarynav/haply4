@@ -23,7 +23,7 @@ export function GetStarted({ h }: { h: H }) {
           </button>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#166534', fontWeight: 600 }}>
             <Ic name="verified" fill size={15} />
-            Verified divorced community · 21+
+            The divorced dating community · 21+
           </span>
         </div>
       </div>
@@ -123,7 +123,7 @@ export function GetStarted({ h }: { h: H }) {
             >
               <Ic name={h.gsConfirm ? 'check_circle' : 'radio_button_unchecked'} fill={h.gsConfirm} size={22} color={h.gsConfirm ? '#16a34a' : '#A8A29E'} style={{ marginTop: 1 }} />
               <span style={{ fontSize: 14, color: '#44403C', lineHeight: 1.5 }}>
-                I confirm I'm <strong>21 or older</strong> and <strong>divorced or legally separated</strong>. I understand Haply will verify this before my profile goes live.
+                I confirm I'm <strong>21 or older</strong> and <strong>divorced or legally separated</strong>. Haply is built on trust — being honest here keeps this community real.
               </span>
             </button>
             {h.gsErr.confirm && <p style={{ ...errText, margin: '-16px 0 0' }}>You must confirm to join — it's what keeps this community real</p>}
@@ -133,9 +133,9 @@ export function GetStarted({ h }: { h: H }) {
             </button>
           </div>
           <p style={{ fontSize: 13, color: '#78716C', textAlign: 'center', margin: '16px 0 0', lineHeight: 1.6 }}>
-            Verification is private and reviewed by a human within 24 hours.
+            Next step: create your free account with Google, Facebook, or Apple.
             <br />
-            Your documents are never shown to other members.
+            Trust and privacy first — your details are never shown publicly.
           </p>
         </div>
       </div>

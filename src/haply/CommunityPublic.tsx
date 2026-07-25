@@ -102,7 +102,7 @@ export function CommunityPublic({ h }: { h: H }) {
             <Logo size={26} color="#e11d48" />
             <div>
               <h1 style={{ fontFamily: serif, fontSize: 18, fontWeight: 700, margin: 0 }}>Haply Community</h1>
-              <p style={{ fontSize: 12, color: '#78716C', margin: 0 }}>25,412 verified divorced members</p>
+              <p style={{ fontSize: 12, color: '#78716C', margin: 0 }}>The divorced dating community</p>
             </div>
           </div>
         </div>

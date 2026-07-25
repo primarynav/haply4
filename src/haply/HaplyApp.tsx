@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './styles.css';
-import { AI_REPLIES, CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, type Post, type Profile } from './data';
+import { AI_REPLIES, CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
 import { Landing } from './Landing';
 import { GetStarted } from './GetStarted';
 import { CommunityPublic } from './CommunityPublic';
@@ -80,7 +80,7 @@ export interface H {
   setAuthPassword: (v: string) => void;
   authError: string;
   authSubmit: () => void;
-  googleAuth: () => void;
+  socialAuth: (provider: 'Google' | 'Facebook' | 'Apple') => void;
   closeAuth: () => void;
 
   dashTab: DashTab;
@@ -242,6 +242,10 @@ export default function HaplyApp() {
     const id = chatId;
     const text = chatDraft.trim();
     if (!id || !text) return;
+    if (violatesLanguagePolicy(text)) {
+      showToast('Our safety bot flagged that wording — Haply runs on kindness. Please rephrase 💛');
+      return;
+    }
     setConvos((c) => ({ ...c, [id]: [...(c[id] || []), { from: 'me', text, time: 'Just now' }] }));
     setChatDraft('');
     setChatTyping(true);
@@ -298,7 +302,7 @@ export default function HaplyApp() {
     finishAuth(
       { name: pretty, email: authEmail.trim() },
       gsIntent,
-      authType === 'signup' ? `Welcome to Haply, ${pretty} — you're verified pending review 🎉` : `Welcome back, ${pretty}!`
+      authType === 'signup' ? `Welcome to Haply, ${pretty} — your free account is ready 💛` : `Welcome back, ${pretty}!`
     );
   };
 
@@ -328,7 +332,7 @@ export default function HaplyApp() {
       if (user) nav('dashboard', 'community');
       else showToast(`Join free to enter the ${city} group`);
     },
-    rsvp: (name) => showToast(`You're on the list for ${name}! 🎟`),
+    rsvp: (name) => showToast(`${name} unlock as your city group grows — we'll let you know 🎟`),
     groupToast: () => showToast('Group chat opens in the full app — coming soon!'),
     settingsToast: () => showToast('Profile settings are not part of this prototype yet.'),
 
@@ -401,7 +405,7 @@ export default function HaplyApp() {
     setAuthPassword,
     authError,
     authSubmit,
-    googleAuth: () => finishAuth({ name: 'Alex', email: 'alex@gmail.com' }, gsIntent, 'Welcome, Alex! Signed in with Google.'),
+    socialAuth: (provider) => finishAuth({ name: 'Alex', email: 'alex@example.com' }, gsIntent, `Welcome, Alex! Signed in with ${provider}.`),
     closeAuth: () => setAuthOpen(false),
 
     dashTab,
@@ -479,6 +483,10 @@ export default function HaplyApp() {
       const text = postDraft.trim();
       if (!text) {
         showToast('Write something first!');
+        return;
+      }
+      if (violatesLanguagePolicy(text)) {
+        showToast('Our safety bot flagged that wording — Haply runs on kindness. Please rephrase 💛');
         return;
       }
       const cat = commCat === 'All Topics' ? 'Divorce Support' : commCat;
