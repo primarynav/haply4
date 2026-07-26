@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './styles.css';
 import { CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
-import { absorbMessage, buildIntros, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
+import { absorbMessage, buildIntros, countMatches, describeFilters, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
 import { createPost, fetchPosts, loadProfile, onAuth, saveProfile, setPostLike, signInEmail, signInProvider, signOutBackend, signUpEmail, type DbUser } from './backend';
 import { aiTurn } from './aiMatchmaker';
 import { Landing } from './Landing';
@@ -25,9 +25,18 @@ export interface ChatMsg {
   text: string;
   time: string;
 }
+const nowLabel = () => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
 export interface AiMsg {
   from: 'me' | 'ai';
   text: string;
+  /** Results as of this turn, so scrolling back shows how the search narrowed. */
+  intros?: Intro[];
+  /** Hard filters that produced `intros`, in plain words. */
+  filters?: string[];
+  /** How many members cleared those filters in total. */
+  total?: number;
+  at?: string;
 }
 export interface GsErr {
   intent?: boolean;
@@ -121,7 +130,6 @@ export interface H {
   aiShowMatches: boolean;
   sendAi: () => void;
   userProfile: UserProfile;
-  aiIntros: Intro[];
   seeking?: string;
 
   matchPopId: number | null;
@@ -308,7 +316,7 @@ export default function HaplyApp() {
       showToast('Our safety bot flagged that wording — Haply runs on kindness. Please rephrase 💛');
       return;
     }
-    const history: AiMsg[] = [...aiMsgs, { from: 'me', text }];
+    const history: AiMsg[] = [...aiMsgs, { from: 'me', text, at: nowLabel() }];
     setAiMsgs(history);
     setAiDraft('');
     setAiTyping(true);
@@ -318,10 +326,15 @@ export default function HaplyApp() {
     const finish = (profile: UserProfile, replyText: string) => {
       const ready = profileReady(profile);
       setUserProfile(profile);
+      // Snapshot results against the profile THIS turn produced. Deriving them at
+      // render time instead would rewrite the whole history on every new message.
+      const intros = ready ? buildIntros(profile, gsLooking, 8) : undefined;
+      const filters = ready ? describeFilters(profile, gsLooking) : undefined;
+      const total = ready ? countMatches(profile, gsLooking) : undefined;
       // Keep a beat of "typing" so a fast reply doesn't snap in unnaturally.
       setTimeout(
         () => {
-          setAiMsgs((m) => [...m, { from: 'ai', text: replyText }]);
+          setAiMsgs((m) => [...m, { from: 'ai', text: replyText, intros, filters, total, at: nowLabel() }]);
           setAiTyping(false);
           if (ready) setAiShowMatches(true);
           scrollBottom('aiScroll');
@@ -596,7 +609,6 @@ export default function HaplyApp() {
     aiShowMatches,
     sendAi,
     userProfile,
-    aiIntros: aiShowMatches ? buildIntros(userProfile, gsLooking) : [],
     seeking: userProfile.seeking,
 
     matchPopId,

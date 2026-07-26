@@ -373,10 +373,13 @@ export interface Intro {
  * Rank the member pool. `seeking` is a hard filter: someone who asked for women
  * is never shown men.
  */
-export function buildIntros(p: UserProfile, fallbackLooking?: string): Intro[] {
-  const seeking: Seeking | undefined =
-    p.seeking ?? (fallbackLooking === 'woman' ? 'women' : fallbackLooking === 'man' ? 'men' : fallbackLooking === 'any' ? 'anyone' : undefined);
+function resolveSeeking(p: UserProfile, fallbackLooking?: string): Seeking | undefined {
+  return p.seeking ?? (fallbackLooking === 'woman' ? 'women' : fallbackLooking === 'man' ? 'men' : fallbackLooking === 'any' ? 'anyone' : undefined);
+}
 
+/** Everyone who clears the hard filters, before any ranking or slicing. */
+function eligiblePool(p: UserProfile, fallbackLooking?: string): Profile[] {
+  const seeking = resolveSeeking(p, fallbackLooking);
   let pool = PROFILES;
   if (seeking === 'women') pool = pool.filter((x) => x.gender === 'woman');
   else if (seeking === 'men') pool = pool.filter((x) => x.gender === 'man');
@@ -384,6 +387,36 @@ export function buildIntros(p: UserProfile, fallbackLooking?: string): Intro[] {
   // Stated age bounds are requirements, not preferences — same contract as `seeking`.
   if (typeof p.minAge === 'number') pool = pool.filter((x) => x.age >= p.minAge!);
   if (typeof p.maxAge === 'number') pool = pool.filter((x) => x.age <= p.maxAge!);
+  return pool;
+}
+
+/** How many members clear the hard filters — the "I found N" figure. */
+export function countMatches(p: UserProfile, fallbackLooking?: string): number {
+  return eligiblePool(p, fallbackLooking).length;
+}
+
+/**
+ * The hard filters in plain words, so the UI can state exactly what was applied
+ * rather than leaving the member to infer it.
+ */
+export function describeFilters(p: UserProfile, fallbackLooking?: string): string[] {
+  const out: string[] = [];
+  const seeking = resolveSeeking(p, fallbackLooking);
+  if (seeking) out.push(seeking === 'anyone' ? 'any gender' : seeking);
+
+  if (p.minAge !== undefined && p.maxAge !== undefined) out.push(`ages ${p.minAge}–${p.maxAge}`);
+  else if (p.minAge !== undefined) out.push(`${p.minAge} and older`);
+  else if (p.maxAge !== undefined) out.push(`${p.maxAge} and younger`);
+
+  if (p.city) out.push(`near ${p.city.split(',')[0].trim()}`);
+  if (p.prefSameAge && p.age) out.push('close to your age');
+  if (p.prefKidsOk) out.push('kids either way');
+  if (p.interests.length) out.push(p.interests.slice(0, 3).join(', ').toLowerCase());
+  return out;
+}
+
+export function buildIntros(p: UserProfile, fallbackLooking?: string, limit = 3): Intro[] {
+  let pool = eligiblePool(p, fallbackLooking);
 
   const memberHasKids = !!p.kids && p.kids !== 'No kids';
 
@@ -435,6 +468,6 @@ export function buildIntros(p: UserProfile, fallbackLooking?: string): Intro[] {
 
   return scored
     .sort((a, b) => b.score - a.score)
-    .slice(0, 3)
+    .slice(0, limit)
     .map(({ profile, pct, reason }) => ({ profile, pct, reason }));
 }

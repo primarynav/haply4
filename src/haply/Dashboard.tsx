@@ -1,7 +1,9 @@
+import { useRef } from 'react';
 import { EVENTS, PROFILES } from './data';
 import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, filteredPosts } from './CommunityPublic';
 import { Ic, Logo, serif } from './ui';
+import type { Intro } from './matchmaker';
 
 const feedH = 'calc(100vh - 185px)';
 
@@ -244,115 +246,239 @@ function DiscoverTab({ h }: { h: H }) {
   );
 }
 
+/** One member, as a compact card in an inline result row. */
+function IntroCard({ h, intro }: { h: H; intro: Intro }) {
+  const p = intro.profile;
+  const liked = h.liked.includes(p.id);
+  const matched = h.matched.includes(p.id);
+  return (
+    <div
+      style={{
+        flex: '0 0 232px',
+        scrollSnapAlign: 'start',
+        background: '#fff',
+        borderRadius: 14,
+        border: '1px solid #EDE6DF',
+        overflow: 'hidden',
+        boxShadow: '0 4px 14px -8px rgba(33,29,26,0.18)'
+      }}
+    >
+      <div style={{ position: 'relative' }}>
+        <img src={p.image} alt={p.name} style={{ width: '100%', height: 150, objectFit: 'cover', display: 'block' }} />
+        <button
+          onClick={() => h.doLike(p.id)}
+          aria-label={liked ? `Unlike ${p.name}` : `Like ${p.name}`}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
+            border: 'none',
+            cursor: 'pointer',
+            background: 'rgba(255,255,255,0.92)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <Ic name="favorite" fill={liked} size={17} color={liked ? '#e11d48' : '#57534E'} />
+        </button>
+        <span
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            left: 8,
+            background: 'rgba(33,29,26,0.82)',
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 700,
+            padding: '3px 8px',
+            borderRadius: 999
+          }}
+        >
+          {intro.pct}
+        </span>
+      </div>
+      <div style={{ padding: '10px 12px 12px' }}>
+        {/* Name + age is the headline, the way price leads a listing card. */}
+        <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.2 }}>
+          {p.name}, {p.age}
+        </div>
+        <div style={{ fontSize: 12.5, color: '#57534E', margin: '4px 0 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <span>{p.children && p.children !== 'None' ? 'has kids' : 'no kids'}</span>
+          <span aria-hidden>·</span>
+          <span>{p.interests.slice(0, 2).join(', ')}</span>
+        </div>
+        <div style={{ fontSize: 12.5, color: '#78716C', marginTop: 3 }}>{p.location}</div>
+        <div style={{ fontSize: 11.5, color: '#A8A29E', marginTop: 6, lineHeight: 1.4, minHeight: 30 }}>{intro.reason}</div>
+        <button
+          onClick={() => h.openDetail(p.id)}
+          className="hvb-cream"
+          style={{
+            marginTop: 8,
+            width: '100%',
+            background: matched ? '#FECDD3' : '#fff',
+            border: '1px solid #D6CCC2',
+            borderRadius: 999,
+            padding: '7px 0',
+            fontSize: 13,
+            fontWeight: 600,
+            color: matched ? '#be123c' : '#44403C',
+            cursor: 'pointer'
+          }}
+        >
+          {matched ? 'Matched — view' : 'View profile'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Horizontally scrolling result row, with a chevron once it overflows. */
+function IntroRow({ h, intros }: { h: H; intros: Intro[] }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const scroll = () => ref.current?.scrollBy({ left: 250, behavior: 'smooth' });
+  return (
+    <div style={{ position: 'relative', margin: '10px 0 2px' }}>
+      <div
+        ref={ref}
+        style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 6, scrollbarWidth: 'thin' }}
+      >
+        {intros.map((intro) => (
+          <IntroCard key={intro.profile.id} h={h} intro={intro} />
+        ))}
+      </div>
+      {intros.length > 2 && (
+        <button
+          onClick={scroll}
+          aria-label="More introductions"
+          style={{
+            position: 'absolute',
+            top: 75,
+            right: -6,
+            width: 30,
+            height: 30,
+            borderRadius: '50%',
+            border: '1px solid #EDE6DF',
+            background: '#fff',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(33,29,26,0.16)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <Ic name="chevron_right" size={19} color="#44403C" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function MatchmakerTab({ h }: { h: H }) {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 24, alignItems: 'start' }} data-rs="1">
-      <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #EDE6DF', boxShadow: '0 10px 24px -12px rgba(33,29,26,0.12)', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 205px)', minHeight: 520 }}>
-        <div style={{ background: '#211D1A', padding: '16px 24px', color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ background: 'rgba(255,255,255,0.14)', padding: 8, borderRadius: '50%', display: 'flex' }}>
-            <Ic name="forum" size={24} />
-          </div>
-          <div>
-            <h3 style={{ fontSize: 17, margin: 0, fontWeight: 600 }}>Your matchmaker</h3>
-            <p style={{ color: '#A8A29E', fontSize: 13, margin: 0 }}>Tell me what matters — I'll introduce you</p>
-          </div>
-        </div>
-        <div id="aiScroll" style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {h.aiMsgs.map((m, i) => {
-            const me = m.from === 'me';
-            return (
-              <div key={i} style={{ display: 'flex', gap: 12, flexDirection: me ? 'row-reverse' : 'row' }}>
-                <div style={{ width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: me ? '#e11d48' : '#211D1A' }}>
-                  <Ic name={me ? 'person' : 'forum'} size={19} color="#fff" />
+    <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 190px)', minHeight: 520 }}>
+      <p style={{ fontSize: 11.5, color: '#A8A29E', lineHeight: 1.5, margin: '0 0 12px', textAlign: 'center' }}>
+        Your matchmaker is AI-assisted. Preferences you state — who you want to meet, ages, city — are applied as filters by Haply, not left to the model.
+      </p>
+
+      <div id="aiScroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18, padding: '4px 8px 8px' }}>
+        {h.aiMsgs.map((m, i) => {
+          const me = m.from === 'me';
+          return (
+            <div key={i}>
+              <div style={{ display: 'flex', gap: 10, flexDirection: me ? 'row-reverse' : 'row', alignItems: 'flex-start' }}>
+                {!me && (
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#211D1A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                    <Ic name="forum" size={16} color="#fff" />
+                  </div>
+                )}
+                <div style={{ maxWidth: me ? '78%' : '100%', flex: me ? '0 1 auto' : 1 }}>
+                  {!me && <div style={{ fontSize: 11.5, color: '#A8A29E', fontWeight: 600, marginBottom: 4 }}>Your matchmaker</div>}
+                  <div
+                    style={{
+                      display: 'inline-block',
+                      padding: '11px 15px',
+                      fontSize: 14.5,
+                      lineHeight: 1.55,
+                      background: me ? '#e11d48' : '#F0E9E2',
+                      color: me ? '#fff' : '#211D1A',
+                      borderRadius: me ? '16px 16px 4px 16px' : '4px 16px 16px 16px'
+                    }}
+                  >
+                    {m.text}
+                  </div>
+
+                  {/* Applied filters, stated rather than implied. */}
+                  {!me && m.filters && m.filters.length > 0 && (
+                    <div style={{ fontSize: 12.5, color: '#57534E', margin: '9px 0 0', lineHeight: 1.5 }}>
+                      {typeof m.total === 'number' && (
+                        <strong style={{ fontWeight: 700 }}>
+                          {m.total} {m.total === 1 ? 'member' : 'members'}
+                        </strong>
+                      )}{' '}
+                      matched on{' '}
+                      {m.filters.map((f, k) => (
+                        <span
+                          key={k}
+                          style={{ display: 'inline-block', background: '#F5F5F4', border: '1px solid #EDE6DF', borderRadius: 999, padding: '2px 9px', margin: '3px 4px 0 0', fontSize: 12 }}
+                        >
+                          {f}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {!me && m.intros && m.intros.length > 0 && <IntroRow h={h} intros={m.intros} />}
+                  {!me && m.intros && m.intros.length === 0 && (
+                    <div style={{ margin: '10px 0 0', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 12, padding: '11px 14px', fontSize: 13, color: '#92400E', lineHeight: 1.5 }}>
+                      No one currently matches every filter. Try widening the age range or the city — tell me and I&apos;ll update it.
+                    </div>
+                  )}
+
+                  {m.at && <div style={{ fontSize: 11, color: '#C4BDB6', marginTop: 6, textAlign: me ? 'right' : 'left' }}>{m.at}</div>}
                 </div>
-                <div style={{ flex: 1, textAlign: me ? 'right' : 'left' }}>
-                  <div style={{ display: 'inline-block', padding: '13px 16px', fontSize: 15, lineHeight: 1.55, textAlign: 'left', background: me ? '#e11d48' : '#F0E9E2', color: me ? '#fff' : '#211D1A', borderRadius: me ? '14px 0 14px 14px' : '0 14px 14px 14px' }}>{m.text}</div>
-                </div>
-              </div>
-            );
-          })}
-          {h.aiTyping && (
-            <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ width: 38, height: 38, background: '#211D1A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Ic name="forum" size={19} color="#fff" />
-              </div>
-              <div style={{ background: '#F0E9E2', padding: 15, borderRadius: 14, borderTopLeftRadius: 0, display: 'flex', gap: 5, alignItems: 'center' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s infinite' }} />
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s .2s infinite' }} />
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s .4s infinite' }} />
               </div>
             </div>
-          )}
-        </div>
-        <div style={{ borderTop: '1px solid #EDE6DF', padding: 16, background: '#FAF7F4', display: 'flex', gap: 8 }}>
-          <input
-            type="text"
-            placeholder="Type your message..."
-            value={h.aiDraft}
-            onChange={(e) => h.setAiDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') h.sendAi();
-            }}
-            className="fc-rose"
-            style={{ flex: 1, background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '10px 18px', fontSize: 15, outline: 'none' }}
-          />
-          <button onClick={h.sendAi} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Ic name="send" size={20} />
-          </button>
-        </div>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <h3 style={{ fontSize: 19, margin: 0, display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
-          Your introductions
-          {h.seeking && (
-            <span style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
-              {h.seeking === 'anyone' ? 'anyone' : h.seeking} only
-            </span>
-          )}
-        </h3>
-        {!h.aiShowMatches ? (
-          <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
-            <Ic name="forum" size={40} color="#D6CCC2" />
-            <p style={{ color: '#78716C', fontSize: 15, margin: '12px 0 0', lineHeight: 1.5 }}>Tell the matchmaker what you're looking for — introductions appear here.</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {h.aiIntros.map(({ profile: p, pct, reason }) => {
-              const id = p.id;
-              const liked = h.liked.includes(id);
-              const matched = h.matched.includes(id);
-              return (
-                <div key={id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #EDE6DF', overflow: 'hidden', animation: 'popin .35s ease' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: 16 }}>
-                    <img src={p.image} alt={p.name} style={{ width: 72, height: 72, borderRadius: 12, objectFit: 'cover' }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                        <h4 style={{ fontSize: 16, margin: 0, fontWeight: 700 }}>{p.name}</h4>
-                        <span style={{ background: '#F0FDF4', color: '#166534', fontSize: 11, padding: '2px 9px', borderRadius: 999, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                          <Ic name="verified" fill size={11} />
-                          {pct}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: 13, color: '#78716C', margin: '0 0 6px' }}>
-                        {p.age} · {p.location}
-                      </p>
-                      <p style={{ fontSize: 13, color: '#44403C', margin: '0 0 10px', lineHeight: 1.5 }}>{reason}</p>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => h.doLike(id)} style={{ display: 'flex', alignItems: 'center', gap: 6, border: 'none', borderRadius: 999, padding: '7px 15px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: liked ? '#FECDD3' : '#e11d48', color: liked ? '#be123c' : '#fff' }}>
-                          <Ic name="favorite" fill={liked} size={15} />
-                          {matched ? 'Matched!' : liked ? 'Liked' : 'Like'}
-                        </button>
-                        <button onClick={() => h.openDetail(id)} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '7px 15px', fontSize: 13, fontWeight: 600, color: '#44403C', cursor: 'pointer' }}>
-                          View profile
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          );
+        })}
+
+        {h.aiTyping && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ width: 30, height: 30, background: '#211D1A', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Ic name="forum" size={16} color="#fff" />
+            </div>
+            <div style={{ background: '#F0E9E2', padding: 13, borderRadius: 14, borderTopLeftRadius: 4, display: 'flex', gap: 5, alignItems: 'center' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s infinite' }} />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s .2s infinite' }} />
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#A8A29E', animation: 'blink 1.2s .4s infinite' }} />
+            </div>
           </div>
         )}
+      </div>
+
+      <div style={{ padding: '12px 8px 0', display: 'flex', gap: 8 }}>
+        <input
+          type="text"
+          placeholder="Tell the matchmaker what you're looking for..."
+          value={h.aiDraft}
+          onChange={(e) => h.setAiDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') h.sendAi();
+          }}
+          className="fc-rose"
+          style={{ flex: 1, background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '12px 20px', fontSize: 15, outline: 'none' }}
+        />
+        <button
+          onClick={h.sendAi}
+          className="hvb-rosedeep"
+          aria-label="Send"
+          style={{ background: '#e11d48', color: '#fff', border: 'none', width: 46, height: 46, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+        >
+          <Ic name="send" size={20} />
+        </button>
       </div>
     </div>
   );
