@@ -61,7 +61,10 @@ Reply guidance:
 - Confirm briefly what you just learned and that you saved it to their profile.
 - If you set or changed "seeking", state plainly that you will only introduce them to that group.
 - Then ask ONE natural follow-up for the most useful thing still missing (age, city, kids, interests, or what matters in a partner).
-- Two or three sentences. Warm, plain language, no bullet points, no emoji spam. Never invent members or claim specific people are waiting.`;
+- Two or three sentences. Warm, plain language, no bullet points, no emoji spam. Never invent members or claim specific people are waiting.
+
+Return ONLY a JSON object, no prose around it and no code fences, shaped exactly:
+{"profile":{"age":null,"gender":null,"seeking":null,"city":null,"kids":null,"interests":[],"prefLocal":null,"prefSameAge":null,"prefKidsOk":null,"intro":null},"reply":"..."}`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -82,34 +85,62 @@ Deno.serve(async (req: Request) => {
 
   const client = new Anthropic({ apiKey });
 
-  try {
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 2000,
-      system: SYSTEM,
-      // Haiku 4.5 supports structured outputs. Do not add tuning params here —
-      // this model rejects them and the whole call 400s.
-      output_config: {
-        format: { type: 'json_schema', schema: SCHEMA }
-      },
-      messages: [
-        {
-          role: 'user',
-          content: `Profile so far (JSON):\n${JSON.stringify(body.profile ?? {}, null, 2)}\n\nConversation so far:\n${history
-            .map((m) => `${m.role === 'me' ? 'Member' : 'Matchmaker'}: ${m.text}`)
-            .join('\n')}\n\nUpdate the profile from the member's latest message and reply to them.`
-        }
-      ]
-    });
+  const prompt = `Profile so far (JSON):\n${JSON.stringify(body.profile ?? {}, null, 2)}\n\nConversation so far:\n${history
+    .map((m) => `${m.role === 'me' ? 'Member' : 'Matchmaker'}: ${m.text}`)
+    .join('\n')}\n\nUpdate the profile from the member's latest message and reply to them.`;
 
-    if (response.stop_reason === 'refusal') return json({ error: 'refused' }, 200);
+  const base = {
+    model: MODEL,
+    max_tokens: 2000,
+    system: SYSTEM,
+    messages: [{ role: 'user' as const, content: prompt }]
+  };
 
-    const text = response.content.find((b) => b.type === 'text');
-    if (!text || text.type !== 'text') return json({ error: 'empty' }, 200);
+  // Structured outputs give a hard shape guarantee, but parameter support varies
+  // by model — a rejected field 400s the whole call. Fall back to plain JSON so a
+  // model that won't take output_config still works instead of dropping the turn.
+  const attempts: { label: string; params: Record<string, unknown> }[] = [
+    { label: 'structured', params: { ...base, output_config: { format: { type: 'json_schema', schema: SCHEMA } } } },
+    { label: 'plain', params: base }
+  ];
 
-    return json({ result: JSON.parse(text.text) });
-  } catch (e) {
-    console.error('matchmaker failed:', e);
-    return json({ error: 'upstream' }, 200);
+  // Tolerate a model that wraps JSON in prose or code fences.
+  const extract = (raw: string): unknown => {
+    const cleaned = raw.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      const start = cleaned.indexOf('{');
+      const end = cleaned.lastIndexOf('}');
+      if (start < 0 || end <= start) throw new Error('no JSON object in response');
+      return JSON.parse(cleaned.slice(start, end + 1));
+    }
+  };
+
+  let lastError = 'unknown';
+
+  for (const attempt of attempts) {
+    try {
+      // deno-lint-ignore no-explicit-any
+      const response = await client.messages.create(attempt.params as any);
+
+      if (response.stop_reason === 'refusal') return json({ error: 'refused' }, 200);
+
+      const text = response.content.find((b) => b.type === 'text');
+      if (!text || text.type !== 'text') {
+        lastError = `${attempt.label}: no text block`;
+        continue;
+      }
+
+      console.log(`matchmaker ok via ${attempt.label} (model ${MODEL})`);
+      return json({ result: extract(text.text) });
+    } catch (e) {
+      lastError = `${attempt.label}: ${e instanceof Error ? e.message : String(e)}`;
+      console.error('matchmaker attempt failed:', lastError);
+    }
   }
+
+  // Detail is echoed back so the failure is visible without reading logs; the
+  // client still falls back to its local engine on any non-result response.
+  return json({ error: 'upstream', detail: lastError }, 200);
 });
