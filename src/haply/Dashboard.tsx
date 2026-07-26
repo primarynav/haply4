@@ -1,11 +1,11 @@
-import { useRef } from 'react';
-import { EVENTS, PROFILES } from './data';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { EVENTS, PROFILES, type Profile } from './data';
 import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, filteredPosts } from './CommunityPublic';
 import { Ic, Logo, serif } from './ui';
-import type { Intro } from './matchmaker';
+import type { Intro, UserProfile } from './matchmaker';
+import { AGE_FLOOR, AGE_CEIL, RADIUS_STEPS, activeFilterCount, applyFilters, emptyFilters, filtersFromProfile, interestOptions, suggestRelax, type DiscoverFilters } from './discoverFilters';
 
-const feedH = 'calc(100vh - 185px)';
 
 export function Dashboard({ h }: { h: H }) {
   return (
@@ -154,99 +154,396 @@ function CommunityTab({ h }: { h: H }) {
   );
 }
 
-function DiscoverTab({ h }: { h: H }) {
-  const feed = PROFILES.filter((p) => !h.hidden.includes(p.id));
+const CHIP = (on: boolean): React.CSSProperties => ({
+  border: on ? '1px solid #e11d48' : '1px solid #D6CCC2',
+  background: on ? '#e11d48' : '#fff',
+  color: on ? '#fff' : '#44403C',
+  borderRadius: 999,
+  padding: '6px 13px',
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap'
+});
+
+const FIELD_LABEL: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: '#78716C', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 7 };
+
+const BAR_BTN: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  background: '#fff',
+  border: '1px solid #D6CCC2',
+  borderRadius: 999,
+  padding: '8px 14px',
+  fontSize: 13.5,
+  fontWeight: 600,
+  color: '#211D1A',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap'
+};
+
+/** A filter-bar control that drops a small panel below itself. */
+function BarMenu({ label, active, children }: { label: string; active?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div id="feed" style={{ height: feedH, minHeight: 520, overflowY: 'auto', scrollSnapType: 'y mandatory', borderRadius: 18 }}>
-      {feed.map((p) => {
-        const liked = h.liked.includes(p.id);
-        const matched = h.matched.includes(p.id);
-        return (
-          <div key={p.id} style={{ position: 'relative', height: feedH, minHeight: 520, scrollSnapAlign: 'start', overflow: 'hidden' }}>
-            <div onClick={() => h.openDetail(p.id)} style={{ position: 'absolute', inset: 0, cursor: 'pointer' }}>
-              <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom,transparent,transparent 55%,rgba(20,16,14,0.72))' }} />
-              <div style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', color: '#fff', fontSize: 12, padding: '6px 12px', borderRadius: 999 }}>Sample profile · tap to view</div>
-            </div>
-            {matched && (
-              <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 10 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#e11d48', color: '#fff', fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 999 }}>
-                  <Ic name="favorite" fill size={12} />
-                  Mutual match
-                </span>
-              </div>
-            )}
-            <div style={{ position: 'absolute', right: 16, bottom: 96, display: 'flex', flexDirection: 'column', gap: 14, zIndex: 10 }}>
-              <button
-                onClick={() => h.doLike(p.id)}
-                title="Like"
-                className="hvb-rose"
-                style={{ width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', transition: 'all .2s', background: liked ? '#e11d48' : 'rgba(255,255,255,0.2)', border: liked ? '1px solid #fb7185' : '1px solid rgba(255,255,255,0.3)' }}
-              >
-                <Ic name="favorite" fill={liked} size={28} color="#fff" />
-              </button>
-              <button
-                onClick={() => h.passProfile(p.id)}
-                title="Pass"
-                className="hvb-white30"
-                style={{ width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.3)' }}
-              >
-                <Ic name="close" size={28} color="#fff" />
-              </button>
-              <button
-                onClick={() => h.openChat(p.id)}
-                title="Message"
-                className="hvb-white35"
-                style={{ width: 56, height: 56, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', transition: 'all .2s', background: matched ? 'rgba(225,29,72,0.75)' : 'rgba(255,255,255,0.2)', border: matched ? '1px solid #fb7185' : '1px solid rgba(255,255,255,0.3)' }}
-              >
-                <Ic name="chat_bubble" size={28} color="#fff" />
-              </button>
-            </div>
-            <div style={{ position: 'absolute', bottom: 32, left: 24, right: 96, color: '#fff', zIndex: 10 }}>
-              <h2 style={{ fontFamily: serif, fontSize: 32, fontWeight: 600, margin: '0 0 6px' }}>
-                {p.name}, {p.age}
-              </h2>
-              <p style={{ fontSize: 17, margin: '0 0 10px', opacity: 0.9 }}>{p.location}</p>
-              <p style={{ fontSize: 15, lineHeight: 1.6, maxWidth: 430, margin: '0 0 12px' }}>{p.bio}</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                {p.interests.map((i) => (
-                  <span key={i} style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 999 }}>
-                    {i}
-                  </span>
-                ))}
-              </div>
-              <p style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 7, background: 'rgba(22,101,52,0.55)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', borderRadius: 999, padding: '6px 14px', border: '1px solid rgba(74,222,128,0.4)', margin: 0 }}>
-                <Ic name="verified" fill size={15} color="#4ade80" />
-                <span style={{ fontWeight: 600 }}>Verified divorced · {p.divorceYear}</span>
-              </p>
-            </div>
-            <div style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.6)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>Scroll for more</span>
-              <div style={{ width: 4, height: 24, background: 'rgba(255,255,255,0.4)', borderRadius: 999, animation: 'pulse 2s infinite' }} />
-            </div>
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setOpen((v) => !v)} style={{ ...BAR_BTN, borderColor: active ? '#e11d48' : '#D6CCC2', color: active ? '#be123c' : '#211D1A' }}>
+        {label}
+        <Ic name={open ? 'expand_less' : 'expand_more'} size={17} />
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 41, background: '#fff', border: '1px solid #EDE6DF', borderRadius: 14, boxShadow: '0 16px 40px -16px rgba(33,29,26,0.3)', padding: 16, minWidth: 262 }}>
+            {children}
           </div>
-        );
-      })}
-      <div style={{ height: feedH, minHeight: 520, scrollSnapAlign: 'start', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0E9E2' }}>
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <Ic name="favorite" size={64} color="#e11d48" />
-          <h3 style={{ fontFamily: serif, fontSize: 26, fontWeight: 600, margin: '20px 0 12px' }}>You've met everyone for now</h3>
-          <p style={{ color: '#57534E', margin: '0 0 24px', fontSize: 16 }}>New verified members join every day. Meanwhile, the community's always on.</p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button onClick={h.startOver} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '11px 24px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-              Start over
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Key filters inline, staged until Search is pressed. */
+function FilterBar({
+  draft,
+  setDraft,
+  onSearch,
+  dirty,
+  onOpenAi,
+  aiOpen
+}: {
+  draft: DiscoverFilters;
+  setDraft: (v: DiscoverFilters) => void;
+  onSearch: () => void;
+  dirty: boolean;
+  onOpenAi: () => void;
+  aiOpen: boolean;
+}) {
+  const set = (patch: Partial<DiscoverFilters>) => setDraft({ ...draft, ...patch });
+  const opts = useMemo(() => interestOptions(14), []);
+  const cities = useMemo(() => {
+    const seen = new Map<string, { lat: number; lng: number }>();
+    for (const x of PROFILES) if (x.lat !== undefined && x.lng !== undefined && !seen.has(x.location)) seen.set(x.location, { lat: x.lat, lng: x.lng });
+    return [...seen.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, []);
+  const d = emptyFilters();
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap', marginBottom: 14 }}>
+      <button
+        onClick={onOpenAi}
+        style={{
+          ...BAR_BTN,
+          background: aiOpen ? '#211D1A' : '#F0E9E2',
+          color: aiOpen ? '#fff' : '#211D1A',
+          border: 'none',
+          fontWeight: 700
+        }}
+      >
+        <Ic name="auto_awesome" size={17} />
+        AI Search
+      </button>
+
+      <BarMenu label={draft.gender === 'anyone' ? 'Show: anyone' : `Show: ${draft.gender}`} active={draft.gender !== d.gender}>
+        <div style={FIELD_LABEL}>Show me</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          {(['women', 'men', 'anyone'] as const).map((g) => (
+            <button key={g} onClick={() => set({ gender: g })} style={CHIP(draft.gender === g)}>
+              {g}
             </button>
-            <button onClick={() => h.setDashTab('community')} className="hvb-cream" style={{ background: '#fff', color: '#211D1A', border: '1px solid #D6CCC2', borderRadius: 999, padding: '11px 24px', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
-              Visit community
-            </button>
-          </div>
+          ))}
         </div>
+      </BarMenu>
+
+      <BarMenu label={`Age ${draft.minAge}–${draft.maxAge}`} active={draft.minAge !== d.minAge || draft.maxAge !== d.maxAge}>
+        <div style={FIELD_LABEL}>
+          Age range · {draft.minAge}–{draft.maxAge}
+        </div>
+        <label style={{ fontSize: 12, color: '#78716C' }}>Minimum</label>
+        <input type="range" min={AGE_FLOOR} max={AGE_CEIL} value={draft.minAge} onChange={(e) => set({ minAge: Math.min(Number(e.target.value), draft.maxAge) })} style={{ width: '100%', accentColor: '#e11d48' }} />
+        <label style={{ fontSize: 12, color: '#78716C' }}>Maximum</label>
+        <input type="range" min={AGE_FLOOR} max={AGE_CEIL} value={draft.maxAge} onChange={(e) => set({ maxAge: Math.max(Number(e.target.value), draft.minAge) })} style={{ width: '100%', accentColor: '#e11d48' }} />
+      </BarMenu>
+
+      <BarMenu label={draft.originLabel ? `${draft.originLabel.split(',')[0]}${draft.radius ? ` · ${draft.radius} mi` : ''}` : 'Anywhere'} active={!!draft.originLabel}>
+        <div style={FIELD_LABEL}>Near</div>
+        <select
+          value={draft.originLabel ?? ''}
+          onChange={(e) => {
+            const city = cities.find(([name]) => name === e.target.value);
+            set(city ? { originLabel: city[0], originLat: city[1].lat, originLng: city[1].lng, radius: draft.radius || 100 } : { originLabel: undefined, originLat: undefined, originLng: undefined, radius: 0 });
+          }}
+          style={{ width: '100%', border: '1px solid #D6CCC2', borderRadius: 10, padding: '8px 10px', fontSize: 13.5, background: '#fff' }}
+        >
+          <option value="">Anywhere in the US</option>
+          {cities.map(([name]) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+        {draft.originLabel && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+            {RADIUS_STEPS.map((r) => (
+              <button key={r} onClick={() => set({ radius: r })} style={{ ...CHIP(draft.radius === r), padding: '5px 11px', fontSize: 12.5 }}>
+                {r === 0 ? 'Any' : `${r} mi`}
+              </button>
+            ))}
+          </div>
+        )}
+      </BarMenu>
+
+      <BarMenu label="Lifestyle" active={draft.kids !== d.kids || draft.smoking !== d.smoking || draft.drinking !== d.drinking || draft.education !== d.education}>
+        <div style={FIELD_LABEL}>Children</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>
+          {([['any', 'Either'], ['has', 'Has kids'], ['none', 'No kids']] as const).map(([v, label]) => (
+            <button key={v} onClick={() => set({ kids: v })} style={CHIP(draft.kids === v)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={FIELD_LABEL}>Smoking</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>
+          {([['any', 'Either'], ['no', 'Non-smokers']] as const).map(([v, label]) => (
+            <button key={v} onClick={() => set({ smoking: v })} style={CHIP(draft.smoking === v)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={FIELD_LABEL}>Drinking</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14 }}>
+          {([['any', 'Either'], ['not-regularly', 'Not regularly'], ['never', 'Never']] as const).map(([v, label]) => (
+            <button key={v} onClick={() => set({ drinking: v })} style={CHIP(draft.drinking === v)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={FIELD_LABEL}>Education</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          {([['any', 'Any'], ['college', 'College+'], ['grad', 'Grad school']] as const).map(([v, label]) => (
+            <button key={v} onClick={() => set({ education: v })} style={CHIP(draft.education === v)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </BarMenu>
+
+      <BarMenu label={draft.interests.length ? `Interests · ${draft.interests.length}` : 'Interests'} active={draft.interests.length > 0}>
+        <div style={FIELD_LABEL}>Shares at least one</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', maxWidth: 300 }}>
+          {opts.map((i) => (
+            <button
+              key={i}
+              onClick={() => set({ interests: draft.interests.includes(i) ? draft.interests.filter((x) => x !== i) : [...draft.interests, i] })}
+              style={{ ...CHIP(draft.interests.includes(i)), fontSize: 12.5, padding: '5px 11px' }}
+            >
+              {i}
+            </button>
+          ))}
+        </div>
+      </BarMenu>
+
+      <button
+        onClick={onSearch}
+        className="hvb-rosedeep"
+        style={{ background: dirty ? '#e11d48' : '#F0E9E2', color: dirty ? '#fff' : '#A8A29E', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 14, fontWeight: 700, cursor: dirty ? 'pointer' : 'default' }}
+      >
+        Search
+      </button>
+
+      {activeFilterCount(draft) > 0 && (
+        <button onClick={() => setDraft(emptyFilters())} style={{ background: 'none', border: 'none', color: '#e11d48', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Grid card: photo on top, then the facts the filters act on. */
+function GridCard({ h, p, miles }: { h: H; p: Profile; miles?: number }) {
+  const liked = h.liked.includes(p.id);
+  const matched = h.matched.includes(p.id);
+  const isParent = !!p.children && p.children !== 'None' && !/^no\b/i.test(p.children);
+  return (
+    <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => h.openDetail(p.id)}>
+        <img src={p.image} alt={p.name} loading="lazy" style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block', background: '#F0E9E2' }} />
+        {matched && (
+          <span style={{ position: 'absolute', top: 8, left: 8, background: '#e11d48', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Ic name="favorite" fill size={11} />
+            Mutual match
+          </span>
+        )}
+        {!matched && miles !== undefined && (
+          <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(33,29,26,0.8)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 6 }}>
+            {miles < 1 ? 'Same city' : `${Math.round(miles)} mi`}
+          </span>
+        )}
+        <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              h.doLike(p.id);
+            }}
+            aria-label={`Like ${p.name}`}
+            title="Like"
+            style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ic name="favorite" fill={liked} size={16} color={liked ? '#e11d48' : '#57534E'} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              h.passProfile(p.id);
+            }}
+            aria-label={`Dislike ${p.name}`}
+            title="Dislike"
+            style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ic name="close" size={16} color="#57534E" />
+          </button>
+        </div>
+      </div>
+      <div style={{ padding: '11px 13px 13px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {p.name}, {p.age}
+        </div>
+        <div style={{ fontSize: 13, color: '#57534E', marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+          <span>{isParent ? 'Has kids' : 'No kids'}</span>
+          <span aria-hidden>·</span>
+          <span>Smokes: {p.smoking ?? '—'}</span>
+          <span aria-hidden>·</span>
+          <span>Drinks: {p.drinking ?? '—'}</span>
+        </div>
+        <div style={{ fontSize: 13, color: '#78716C', marginTop: 3 }}>{p.location}</div>
+        {p.education && <div style={{ fontSize: 12, color: '#A8A29E', marginTop: 3 }}>{p.education}</div>}
+        <div style={{ fontSize: 12, color: '#57534E', marginTop: 8, borderTop: '1px solid #F5F1ED', paddingTop: 8 }}>{p.interests.slice(0, 3).join(' · ')}</div>
       </div>
     </div>
   );
 }
 
-/** One member, as a compact card in an inline result row. */
+/** Right-hand sheet running the same matchmaker conversation, wired to the grid. */
+function AiSearchSheet({ h, onClose, onFilters }: { h: H; onClose: () => void; onFilters: (p: UserProfile) => void }) {
+  const lastSeen = useRef(h.aiMsgs.length);
+  useEffect(() => {
+    if (h.aiMsgs.length !== lastSeen.current) {
+      lastSeen.current = h.aiMsgs.length;
+      onFilters(h.userProfile);
+    }
+  }, [h.aiMsgs.length, h.userProfile, onFilters]);
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(20,16,14,0.35)', zIndex: 60 }} />
+      <aside
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 'min(430px, 100vw)',
+          background: '#FAF7F4',
+          borderLeft: '1px solid #EDE6DF',
+          zIndex: 61,
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '-14px 0 40px -20px rgba(33,29,26,0.4)'
+        }}
+      >
+        <div style={{ background: '#211D1A', color: '#fff', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Ic name="auto_awesome" size={19} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>AI Search</div>
+            <div style={{ fontSize: 12, color: '#A8A29E' }}>Describe who you want — I&apos;ll filter the results</div>
+          </div>
+          <button onClick={onClose} aria-label="Close AI Search" style={{ background: 'rgba(255,255,255,0.14)', border: 'none', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Ic name="close" size={17} color="#fff" />
+          </button>
+        </div>
+        <MatchmakerConversation h={h} scrollId="aiSheetScroll" />
+      </aside>
+    </>
+  );
+}
+
+const PAGE = 24;
+
+function DiscoverTab({ h }: { h: H }) {
+  const [draft, setDraft] = useState<DiscoverFilters>(emptyFilters);
+  const [applied, setApplied] = useState<DiscoverFilters>(emptyFilters);
+  const [shown, setShown] = useState(PAGE);
+  const [aiOpen, setAiOpen] = useState(false);
+
+  const results = useMemo(() => applyFilters(applied, h.hidden), [applied, h.hidden]);
+  const relax = useMemo(() => (results.length === 0 && activeFilterCount(applied) > 0 ? suggestRelax(applied, h.hidden) : null), [results.length, applied, h.hidden]);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(applied);
+
+  const applyFromAi = useCallback((p: UserProfile) => {
+    setApplied((prev) => {
+      const next = filtersFromProfile(p, prev);
+      setDraft(next);
+      return next;
+    });
+    setShown(PAGE);
+  }, []);
+
+  const visible = results.slice(0, shown);
+
+  return (
+    <div>
+      <FilterBar
+        draft={draft}
+        setDraft={setDraft}
+        dirty={dirty}
+        onSearch={() => {
+          setApplied(draft);
+          setShown(PAGE);
+        }}
+        onOpenAi={() => setAiOpen((v) => !v)}
+        aiOpen={aiOpen}
+      />
+
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
+          {results.length.toLocaleString()} {results.length === 1 ? 'member' : 'members'}
+          {applied.originLabel && applied.radius > 0 ? ` within ${applied.radius} mi of ${applied.originLabel.split(',')[0]}` : ''}
+        </h2>
+        {dirty && <span style={{ fontSize: 13, color: '#be123c', fontWeight: 600 }}>Filters changed — press Search to apply</span>}
+      </div>
+
+      {results.length === 0 ? (
+        <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
+          <Ic name="search_off" size={40} color="#D6CCC2" />
+          <p style={{ color: '#44403C', fontSize: 16, fontWeight: 600, margin: '12px 0 4px' }}>No one matches all of those filters</p>
+          <p style={{ color: '#78716C', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+            {relax ? `Widening ${relax.label} would show ${relax.count.toLocaleString()} ${relax.count === 1 ? 'person' : 'people'}.` : 'Try clearing a filter or two.'}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(232px,1fr))', gap: 16 }}>
+            {visible.map(({ profile, miles }) => (
+              <GridCard key={profile.id} h={h} p={profile} miles={miles} />
+            ))}
+          </div>
+          {shown < results.length && (
+            <div style={{ textAlign: 'center', padding: '22px 0 4px' }}>
+              <button onClick={() => setShown((n) => n + PAGE)} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '11px 26px', fontSize: 14, fontWeight: 700, cursor: 'pointer', color: '#211D1A' }}>
+                Show more · {visible.length} of {results.length.toLocaleString()}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {aiOpen && <AiSearchSheet h={h} onClose={() => setAiOpen(false)} onFilters={applyFromAi} />}
+    </div>
+  );
+}
+
 function IntroCard({ h, intro }: { h: H; intro: Intro }) {
   const p = intro.profile;
   const liked = h.liked.includes(p.id);
@@ -377,14 +674,12 @@ function IntroRow({ h, intros }: { h: H; intros: Intro[] }) {
   );
 }
 
-function MatchmakerTab({ h }: { h: H }) {
+/** The matchmaker conversation: message list, inline results, composer. Shared by
+ *  the Matchmaker tab and the Discover AI Search sheet so they behave identically. */
+function MatchmakerConversation({ h, scrollId = 'aiScroll' }: { h: H; scrollId?: string }) {
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 190px)', minHeight: 520 }}>
-      <p style={{ fontSize: 11.5, color: '#A8A29E', lineHeight: 1.5, margin: '0 0 12px', textAlign: 'center' }}>
-        Your matchmaker is AI-assisted. Preferences you state — who you want to meet, ages, city — are applied as filters by Haply, not left to the model.
-      </p>
-
-      <div id="aiScroll" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18, padding: '4px 8px 8px' }}>
+    <>
+      <div id={scrollId} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 18, padding: '12px 12px 8px' }}>
         {h.aiMsgs.map((m, i) => {
           const me = m.from === 'me';
           return (
@@ -395,7 +690,7 @@ function MatchmakerTab({ h }: { h: H }) {
                     <Ic name="forum" size={16} color="#fff" />
                   </div>
                 )}
-                <div style={{ maxWidth: me ? '78%' : '100%', flex: me ? '0 1 auto' : 1 }}>
+                <div style={{ maxWidth: me ? '82%' : '100%', flex: me ? '0 1 auto' : 1, minWidth: 0 }}>
                   {!me && <div style={{ fontSize: 11.5, color: '#A8A29E', fontWeight: 600, marginBottom: 4 }}>Your matchmaker</div>}
                   <div
                     style={{
@@ -411,7 +706,6 @@ function MatchmakerTab({ h }: { h: H }) {
                     {m.text}
                   </div>
 
-                  {/* Applied filters, stated rather than implied. */}
                   {!me && m.filters && m.filters.length > 0 && (
                     <div style={{ fontSize: 12.5, color: '#57534E', margin: '9px 0 0', lineHeight: 1.5 }}>
                       {typeof m.total === 'number' && (
@@ -421,10 +715,7 @@ function MatchmakerTab({ h }: { h: H }) {
                       )}{' '}
                       matched on{' '}
                       {m.filters.map((f, k) => (
-                        <span
-                          key={k}
-                          style={{ display: 'inline-block', background: '#F5F5F4', border: '1px solid #EDE6DF', borderRadius: 999, padding: '2px 9px', margin: '3px 4px 0 0', fontSize: 12 }}
-                        >
+                        <span key={k} style={{ display: 'inline-block', background: '#F5F5F4', border: '1px solid #EDE6DF', borderRadius: 999, padding: '2px 9px', margin: '3px 4px 0 0', fontSize: 12 }}>
                           {f}
                         </span>
                       ))}
@@ -459,7 +750,7 @@ function MatchmakerTab({ h }: { h: H }) {
         )}
       </div>
 
-      <div style={{ padding: '12px 8px 0', display: 'flex', gap: 8 }}>
+      <div style={{ padding: 12, borderTop: '1px solid #EDE6DF', display: 'flex', gap: 8, background: '#FAF7F4' }}>
         <input
           type="text"
           placeholder="Tell the matchmaker what you're looking for..."
@@ -469,17 +760,23 @@ function MatchmakerTab({ h }: { h: H }) {
             if (e.key === 'Enter') h.sendAi();
           }}
           className="fc-rose"
-          style={{ flex: 1, background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '12px 20px', fontSize: 15, outline: 'none' }}
+          style={{ flex: 1, minWidth: 0, background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '11px 18px', fontSize: 14.5, outline: 'none' }}
         />
-        <button
-          onClick={h.sendAi}
-          className="hvb-rosedeep"
-          aria-label="Send"
-          style={{ background: '#e11d48', color: '#fff', border: 'none', width: 46, height: 46, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-        >
+        <button onClick={h.sendAi} className="hvb-rosedeep" aria-label="Send" style={{ background: '#e11d48', color: '#fff', border: 'none', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <Ic name="send" size={20} />
         </button>
       </div>
+    </>
+  );
+}
+
+function MatchmakerTab({ h }: { h: H }) {
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 190px)', minHeight: 520 }}>
+      <p style={{ fontSize: 11.5, color: '#A8A29E', lineHeight: 1.5, margin: '0 0 8px', textAlign: 'center' }}>
+        Your matchmaker is AI-assisted. Preferences you state — who you want to meet, ages, city — are applied as filters by Haply, not left to the model.
+      </p>
+      <MatchmakerConversation h={h} />
     </div>
   );
 }
