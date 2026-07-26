@@ -322,7 +322,11 @@ export function buildIntros(p: UserProfile, fallbackLooking?: string): Intro[] {
       reasons.push(`shares your love of ${shared.map((i) => i.toLowerCase()).join(' and ')}`);
     }
 
-    const theyAreParent = /\bkids?\b|\bmom\b|\bdad\b|\bparent|children/i.test(`${x.bio} ${x.children ?? ''} ${x.interests.join(' ')}`);
+    // "No kids" and "No children" both contain the words we look for, so strip
+    // negated mentions first — otherwise every child-free member reads as a parent.
+    const parentText = `${x.bio} ${x.children ?? ''} ${x.interests.join(' ')}`
+      .replace(/\b(?:no|none|zero|without|child-?free)\b[^.!?]*/gi, ' ');
+    const theyAreParent = /\bkids?\b|\bmom\b|\bdad\b|\bparent|children/i.test(parentText);
     if (memberHasKids && theyAreParent) {
       s += 14;
       reasons.push('also a parent, so kids are no surprise');

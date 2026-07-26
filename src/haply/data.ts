@@ -1,3 +1,5 @@
+import { GENERATED_PROFILES } from './generatedProfiles';
+
 export interface Profile {
   id: number;
   name: string;
@@ -77,7 +79,9 @@ export const HERO_SLIDES: HeroSlide[] = [
   }
 ];
 
-export const PROFILES: Profile[] = [
+// The six hand-written members stay first — CHAT_REPLIES and LIKES_BACK key off
+// their ids — with the generated test pool appended behind them.
+const SEED_PROFILES: Profile[] = [
   { id: 1, name: 'Emily', gender: 'woman', age: 42, location: 'Seattle, WA', image: 'https://images.unsplash.com/photo-1690444963408-9573a17a8058?w=1080&q=80&fit=crop', bio: 'Divorced mom of two, yoga instructor, loves hiking and good coffee. Looking for genuine connection and someone who values mindfulness and outdoor adventures.', divorceYear: 2021, interests: ['Yoga', 'Hiking', 'Photography'], occupation: 'Yoga Instructor', education: "Bachelor's in Health Sciences", height: '5\'6"', children: '2 (ages 8 and 10)', lookingFor: 'A genuine connection with someone who understands the journey of starting over and values family, wellness, and authentic communication.' },
   { id: 2, name: 'Michael', gender: 'man', age: 38, location: 'Portland, OR', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1080&q=80&fit=crop', bio: 'Recently divorced dad, software engineer, enjoys cooking and weekend adventures. Ready for a fresh start with someone who appreciates good food and spontaneous road trips.', divorceYear: 2022, interests: ['Cooking', 'Technology', 'Travel'], occupation: 'Software Engineer', education: "Master's in Computer Science", height: '6\'0"', children: '1 (age 6)', lookingFor: "Looking for a partner who enjoys both cozy nights in and outdoor adventures. Someone who values family and isn't afraid of a little spontaneity." },
   { id: 3, name: 'Sarah', gender: 'woman', age: 35, location: 'San Francisco, CA', image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=1080&q=80&fit=crop', bio: 'Artist and teacher who believes in second chances. Love painting, museums, and weekend farmers markets. Looking for someone who appreciates creativity and meaningful conversations.', divorceYear: 2020, interests: ['Art', 'Teaching', 'Museums'], occupation: 'Art Teacher', education: 'MFA in Fine Arts', height: '5\'7"', children: 'No children', lookingFor: "Seeking a partner who appreciates art, culture, and deep conversations. Someone who sees beauty in the everyday and isn't afraid to try new things." },
@@ -85,6 +89,8 @@ export const PROFILES: Profile[] = [
   { id: 5, name: 'Jessica', gender: 'woman', age: 39, location: 'Denver, CO', image: 'https://images.unsplash.com/photo-1650484094047-bbbf2ca7c261?w=1080&q=80&fit=crop', bio: 'Nurse, adventurer, dog mom. Divorced and ready to write a new chapter filled with laughter and love.', divorceYear: 2021, interests: ['Healthcare', 'Dogs', 'Adventure'] },
   { id: 6, name: 'James', gender: 'man', age: 41, location: 'Chicago, IL', image: 'https://images.unsplash.com/photo-1638016329956-1127c6e4c96f?w=1080&q=80&fit=crop', bio: 'Chef and single dad who believes the best meals are shared. Looking for someone to create new memories with.', divorceYear: 2020, interests: ['Cooking', 'Wine', 'Family Time'] }
 ];
+
+export const PROFILES: Profile[] = [...SEED_PROFILES, ...GENERATED_PROFILES];
 
 export const LIKES_BACK = [2, 5];
 
