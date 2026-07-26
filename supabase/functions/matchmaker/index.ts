@@ -87,7 +87,8 @@ Deno.serve(async (req: Request) => {
       model: MODEL,
       max_tokens: 2000,
       system: SYSTEM,
-      // Haiku 4.5 supports structured outputs but not `effort` — sending it 400s.
+      // Haiku 4.5 supports structured outputs. Do not add tuning params here —
+      // this model rejects them and the whole call 400s.
       output_config: {
         format: { type: 'json_schema', schema: SCHEMA }
       },
