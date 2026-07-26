@@ -1,4 +1,5 @@
 import { GENERATED_PROFILES } from './generatedProfiles';
+import { COMMUNITY_POSTS } from './communityPosts';
 
 export interface Profile {
   id: number;
@@ -106,12 +107,7 @@ export const CHAT_REPLIES: Record<number, string[]> = {
   5: ['Hi! So glad we matched. My dog already approves of you 🐶', 'Do you hike? I know some great trails outside Denver.']
 };
 
-export const POSTS: Post[] = [
-  { id: 1, name: 'Haply Team', cat: 'Divorce Support', time: 'Pinned', title: 'Welcome to Haply — introduce yourself', body: 'Tell the community a little about where you are in your journey. New here? Start with hello — someone will be glad you did.', likes: 0, comments: 0 },
-  { id: 2, name: 'Haply Team', cat: 'Co-Parenting', time: 'Pinned', title: 'Co-parents: what is working for you?', body: 'Schedules, hand-offs, holidays — share what has made two-home parenting smoother for your family.', likes: 0, comments: 0 },
-  { id: 3, name: 'Haply Team', cat: 'Dating Again', time: 'Pinned', title: 'What does "ready to date" feel like?', body: "There's no deadline. Share how you knew it was time — or ask the community how they knew.", likes: 0, comments: 0 },
-  { id: 4, name: 'Haply Team', cat: 'Self-Care', time: 'Pinned', title: 'One small win this week', body: 'Big or small, share a win. This thread is for cheering each other on.', likes: 0, comments: 0 }
-];
+export const POSTS: Post[] = COMMUNITY_POSTS;
 
 export const CATS = ['All Topics', 'Divorce Support', 'Co-Parenting', 'Dating Again', 'Success Stories', 'Self-Care'];
 
