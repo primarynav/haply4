@@ -4,6 +4,7 @@ import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, filteredPosts } from './CommunityPublic';
 import { Ic, Logo, serif } from './ui';
 import type { Intro, UserProfile } from './matchmaker';
+import { detectByIp, detectPrecise, detectQuietly, type DetectedLocation } from './geolocate';
 import { AGE_FLOOR, AGE_CEIL, RADIUS_STEPS, activeFilterCount, applyFilters, emptyFilters, filtersFromProfile, interestOptions, suggestRelax, type DiscoverFilters } from './discoverFilters';
 
 
@@ -211,7 +212,11 @@ function FilterBar({
   onSearch,
   dirty,
   onOpenAi,
-  aiOpen
+  aiOpen,
+  detected,
+  locating,
+  locError,
+  onUseCurrentLocation
 }: {
   draft: DiscoverFilters;
   setDraft: (v: DiscoverFilters) => void;
@@ -219,6 +224,10 @@ function FilterBar({
   dirty: boolean;
   onOpenAi: () => void;
   aiOpen: boolean;
+  detected: DetectedLocation | null;
+  locating: boolean;
+  locError: string | null;
+  onUseCurrentLocation: () => void;
 }) {
   const set = (patch: Partial<DiscoverFilters>) => setDraft({ ...draft, ...patch });
   const opts = useMemo(() => interestOptions(14), []);
@@ -268,6 +277,42 @@ function FilterBar({
 
       <BarMenu label={draft.originLabel ? `${draft.originLabel.split(',')[0]}${draft.radius ? ` · ${draft.radius} mi` : ''}` : 'Anywhere'} active={!!draft.originLabel}>
         <div style={FIELD_LABEL}>Near</div>
+
+        {/* Precise location is requested only by this click — never on load. */}
+        <button
+          onClick={onUseCurrentLocation}
+          disabled={locating}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            width: '100%',
+            background: 'none',
+            border: 'none',
+            borderRadius: 9,
+            padding: '9px 8px',
+            marginBottom: 6,
+            fontSize: 14,
+            fontWeight: 600,
+            color: locating ? '#A8A29E' : '#0369a1',
+            cursor: locating ? 'default' : 'pointer',
+            textAlign: 'left'
+          }}
+        >
+          <Ic name="near_me" size={18} />
+          {locating ? 'Locating…' : 'Current location'}
+        </button>
+        {locError && !locating && (
+          <div style={{ fontSize: 12, color: '#92400E', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 9, padding: '8px 10px', margin: '0 0 10px', lineHeight: 1.45 }}>{locError}</div>
+        )}
+        {detected && !locating && !locError && (
+          <div style={{ fontSize: 11.5, color: '#A8A29E', margin: '-2px 0 10px 8px', lineHeight: 1.45 }}>
+            {detected.source === 'gps' ? 'From your device' : 'Estimated from your connection'} · nearest members are in {detected.label}
+            {detected.offBy >= 1 ? `, ${Math.round(detected.offBy)} mi away` : ''}
+          </div>
+        )}
+
+        <div style={{ ...FIELD_LABEL, marginTop: 2 }}>Or pick a city</div>
         <select
           value={draft.originLabel ?? ''}
           onChange={(e) => {
@@ -476,10 +521,47 @@ function DiscoverTab({ h }: { h: H }) {
   const [applied, setApplied] = useState<DiscoverFilters>(emptyFilters);
   const [shown, setShown] = useState(PAGE);
   const [aiOpen, setAiOpen] = useState(false);
+  const [detected, setDetected] = useState<DetectedLocation | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
 
   const results = useMemo(() => applyFilters(applied, h.hidden), [applied, h.hidden]);
   const relax = useMemo(() => (results.length === 0 && activeFilterCount(applied) > 0 ? suggestRelax(applied, h.hidden) : null), [results.length, applied, h.hidden]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(applied);
+
+  // Coarse IP-based prefill on first load. It fills the draft only — nothing is
+  // applied until Search, and no permission prompt is raised.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current) return;
+    prefilled.current = true;
+    let live = true;
+    void detectQuietly().then((loc) => {
+      if (!live || !loc) return;
+      setDetected(loc);
+      setDraft((d) => (d.originLabel ? d : { ...d, originLabel: loc.label, originLat: loc.lat, originLng: loc.lng, radius: d.radius || 100 }));
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const useCurrentLocation = useCallback(async () => {
+    setLocating(true);
+    setLocError(null);
+    // Ask the device first; fall back to the coarse estimate if declined.
+    const loc = (await detectPrecise()) ?? (await detectByIp());
+    setLocating(false);
+    if (!loc) {
+      setLocError('Could not determine your location — pick a city below.');
+      return;
+    }
+    setDetected(loc);
+    const next = { originLabel: loc.label, originLat: loc.lat, originLng: loc.lng, radius: 100 };
+    setDraft((d) => ({ ...d, ...next }));
+    setApplied((a) => ({ ...a, ...next }));
+    setShown(PAGE);
+  }, []);
 
   const applyFromAi = useCallback((p: UserProfile) => {
     setApplied((prev) => {
@@ -504,6 +586,10 @@ function DiscoverTab({ h }: { h: H }) {
         }}
         onOpenAi={() => setAiOpen((v) => !v)}
         aiOpen={aiOpen}
+        detected={detected}
+        locating={locating}
+        locError={locError}
+        onUseCurrentLocation={useCurrentLocation}
       />
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
