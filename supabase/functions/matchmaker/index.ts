@@ -3,7 +3,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 // Claude understands what the member says and writes the reply; the app applies
 // the extracted preferences as filters. Matching itself is never left to the
 // model — a member who asks for women must never be shown men.
-const MODEL = 'claude-opus-5';
+const MODEL = 'claude-haiku-4-5-20251001';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
