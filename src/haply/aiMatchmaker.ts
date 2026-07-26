@@ -8,6 +8,8 @@ interface AiProfile {
   seeking?: Seeking | null;
   city?: string | null;
   kids?: string | null;
+  minAge?: number | null;
+  maxAge?: number | null;
   interests?: string[] | null;
   prefLocal?: boolean | null;
   prefSameAge?: boolean | null;
@@ -23,6 +25,8 @@ function toWire(p: UserProfile) {
     seeking: p.seeking ?? null,
     city: p.city ?? null,
     kids: p.kids ?? null,
+    minAge: p.minAge ?? null,
+    maxAge: p.maxAge ?? null,
     interests: p.interests,
     prefLocal: p.prefLocal ?? null,
     prefSameAge: p.prefSameAge ?? null,
@@ -40,12 +44,25 @@ function merge(prev: UserProfile, ai: AiProfile): UserProfile {
     ? Array.from(new Set(ai.interests.filter((i) => typeof i === 'string' && i.trim()).map((i) => i.trim()))).slice(0, 12)
     : prev.interests;
 
+  // Age bounds are hard filters, so validate them rather than trusting the model:
+  // in range, and min never above max.
+  const bound = (v: unknown, prev: number | undefined) =>
+    typeof v === 'number' && Number.isFinite(v) && v >= 21 && v <= 99 ? Math.round(v) : prev;
+  let minAge = bound(ai.minAge, prev.minAge);
+  let maxAge = bound(ai.maxAge, prev.maxAge);
+  if (minAge !== undefined && maxAge !== undefined && minAge > maxAge) {
+    minAge = prev.minAge;
+    maxAge = prev.maxAge;
+  }
+
   const next: UserProfile = {
     ...prev,
     age,
     gender,
     seeking,
     city: typeof ai.city === 'string' && ai.city.trim() ? ai.city.trim() : prev.city,
+    minAge,
+    maxAge,
     kids: typeof ai.kids === 'string' && ai.kids.trim() ? ai.kids.trim() : prev.kids,
     interests,
     prefLocal: typeof ai.prefLocal === 'boolean' ? ai.prefLocal : prev.prefLocal,

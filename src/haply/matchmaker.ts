@@ -11,6 +11,13 @@ export interface UserProfile {
   seeking?: Seeking;
   city?: string;
   kids?: string;
+  /**
+   * Explicit age bounds for who they want to meet. Applied as HARD filters, like
+   * `seeking` — a member who asks for 50+ must never be shown a 42-year-old.
+   * Distinct from `prefSameAge`, which only nudges the ranking.
+   */
+  minAge?: number;
+  maxAge?: number;
   interests: string[];
   prefLocal?: boolean;
   prefSameAge?: boolean;
@@ -83,6 +90,52 @@ function parseSeeking(text: string): Seeking | undefined {
   if (FEMALE.test(token)) return 'women';
   if (MALE.test(token)) return 'men';
   return undefined;
+}
+
+/**
+ * Age bounds for who the member wants to meet — "50 and above", "under 45",
+ * "between 40 and 55". Deliberately narrow: only phrasings that clearly describe
+ * a bound, so "I'm 52" is never mistaken for a requirement.
+ */
+function parseAgeRange(text: string): { minAge?: number; maxAge?: number; matched: string[] } | undefined {
+  const t = text.toLowerCase();
+  const inRange = (v: number) => v >= 21 && v <= 99;
+
+  const between = t.match(/\b(?:between|from)\s+(\d{2})\s*(?:and|to|-|–)\s*(\d{2})\b/);
+  if (between) {
+    const lo = Number(between[1]);
+    const hi = Number(between[2]);
+    if (inRange(lo) && inRange(hi) && lo <= hi) return { minAge: lo, maxAge: hi, matched: [between[0]] };
+  }
+
+  // No trailing \b after these — "50+" ends on a non-word char, so a boundary
+  // assertion there never holds and the whole pattern silently fails to match.
+  const min =
+    t.match(/\b(\d{2})\s*\+/) ||
+    t.match(/\b(\d{2})\s*(?:years?\s*old\s*)?(?:and|or)\s+(?:above|older|up|over)\b/) ||
+    t.match(/\b(?:over|above|older than|at least|minimum(?: of)?)\s+(\d{2})\b/);
+
+  // "nobody under 45" is a floor, not a ceiling — negation inverts the bound, so
+  // check for it before treating "under N" as a maximum.
+  const negatedFloor = t.match(/\b(?:no|nobody|no one|noone|not|never)\b[^.!?]{0,20}?\b(?:under|below|younger than|less than)\s+(\d{2})\b/);
+  const max = t.match(/\b(?:under|below|younger than|at most|maximum(?: of)?|no older than|up to)\s+(\d{2})\b/) || t.match(/\b(\d{2})\s*(?:years?\s*old\s*)?(?:and|or)\s+(?:below|younger|under)\b/);
+
+  const out: { minAge?: number; maxAge?: number; matched: string[] } = { matched: [] };
+
+  if (negatedFloor && inRange(Number(negatedFloor[1]))) {
+    out.minAge = Number(negatedFloor[1]);
+    out.matched.push(negatedFloor[0]);
+  } else if (max && inRange(Number(max[1]))) {
+    out.maxAge = Number(max[1]);
+    out.matched.push(max[0]);
+  }
+
+  if (min && inRange(Number(min[1]))) {
+    out.minAge = Number(min[1]);
+    out.matched.push(min[0]);
+  }
+
+  return out.minAge !== undefined || out.maxAge !== undefined ? out : undefined;
 }
 
 function parseOwnGender(text: string): 'man' | 'woman' | undefined {
@@ -165,6 +218,22 @@ export function absorbMessage(text: string, prev: UserProfile): Absorbed {
     }
   }
 
+  const range = parseAgeRange(text);
+  if (range) {
+    const label =
+      range.minAge !== undefined && range.maxAge !== undefined
+        ? `ages ${range.minAge}-${range.maxAge}`
+        : range.minAge !== undefined
+          ? `${range.minAge} and older`
+          : `${range.maxAge} and younger`;
+    if (p.minAge === range.minAge && p.maxAge === range.maxAge) restated.push(`you want ${label}`);
+    else {
+      if (range.minAge !== undefined) p.minAge = range.minAge;
+      if (range.maxAge !== undefined) p.maxAge = range.maxAge;
+      facts.push(`only ${label}`);
+    }
+  }
+
   const gender = parseOwnGender(text);
   if (gender) {
     if (p.gender === gender) restated.push(`you're a divorced ${gender}`);
@@ -174,10 +243,18 @@ export function absorbMessage(text: string, prev: UserProfile): Absorbed {
     }
   }
 
+  // "only 50 years old or above" describes who they want to meet, not their own
+  // age — blank out any range phrase so its number can't be read as the member's.
+  let ownAgeText = text;
+  for (const m of range?.matched ?? []) {
+    const at = ownAgeText.toLowerCase().indexOf(m);
+    if (at >= 0) ownAgeText = ownAgeText.slice(0, at) + ' '.repeat(m.length) + ownAgeText.slice(at + m.length);
+  }
+
   const ageM =
-    text.match(/\b(?:age\s*|i'?m\s+|i am\s+|im\s+)(\d{2})\b/i) ||
-    text.match(/\b(\d{2})\s*(?:years?\s*old|y\/?o|yrs?)\b/i) ||
-    (lastAsked === 'age' ? text.match(/^\s*(\d{2})\s*$/) : null);
+    ownAgeText.match(/\b(?:age\s*|i'?m\s+|i am\s+|im\s+)(\d{2})\b/i) ||
+    ownAgeText.match(/\b(\d{2})\s*(?:years?\s*old|y\/?o|yrs?)\b/i) ||
+    (lastAsked === 'age' ? ownAgeText.match(/^\s*(\d{2})\s*$/) : null);
   if (ageM) {
     const a = parseInt(ageM[1], 10);
     if (a >= 21 && a <= 99) {
@@ -303,6 +380,10 @@ export function buildIntros(p: UserProfile, fallbackLooking?: string): Intro[] {
   let pool = PROFILES;
   if (seeking === 'women') pool = pool.filter((x) => x.gender === 'woman');
   else if (seeking === 'men') pool = pool.filter((x) => x.gender === 'man');
+
+  // Stated age bounds are requirements, not preferences — same contract as `seeking`.
+  if (typeof p.minAge === 'number') pool = pool.filter((x) => x.age >= p.minAge!);
+  if (typeof p.maxAge === 'number') pool = pool.filter((x) => x.age <= p.maxAge!);
 
   const memberHasKids = !!p.kids && p.kids !== 'No kids';
 

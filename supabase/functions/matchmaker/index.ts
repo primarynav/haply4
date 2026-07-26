@@ -26,13 +26,15 @@ const SCHEMA = {
         seeking: { anyOf: [{ type: 'string', enum: ['women', 'men', 'anyone'] }, { type: 'null' }] },
         city: nullable('string'),
         kids: nullable('string'),
+        minAge: nullable('integer'),
+        maxAge: nullable('integer'),
         interests: { type: 'array', items: { type: 'string' } },
         prefLocal: nullable('boolean'),
         prefSameAge: nullable('boolean'),
         prefKidsOk: nullable('boolean'),
         intro: nullable('string')
       },
-      required: ['age', 'gender', 'seeking', 'city', 'kids', 'interests', 'prefLocal', 'prefSameAge', 'prefKidsOk', 'intro'],
+      required: ['age', 'gender', 'seeking', 'city', 'kids', 'minAge', 'maxAge', 'interests', 'prefLocal', 'prefSameAge', 'prefKidsOk', 'intro'],
       additionalProperties: false
     },
     reply: { type: 'string' }
@@ -52,6 +54,7 @@ Field guidance:
 - gender: the member's own gender. Only set this from self-description ("I'm a divorced man"). Never infer it from who they want to meet.
 - seeking: who they want to be introduced to. "women", "men", or "anyone". This is a hard filter the app enforces, so only set it when they actually express a preference.
 - city: where they live, e.g. "Chicago" or "Buffalo Grove, IL". A bare city name in reply to your question counts.
+- minAge / maxAge: age bounds for who they want to MEET, when they state one ("50 and above" -> minAge 50; "under 45" -> maxAge 45; "between 40 and 55" -> both). These are hard filters the app enforces, so only set them when the member actually asks. Never set them from the member's own age.
 - kids: their own children in plain words, e.g. "2 boys (15 and 13)" or "No kids".
 - interests: short title-case labels, e.g. ["Travel","Hiking","Cooking"]. Keep previously known ones.
 - prefLocal / prefSameAge / prefKidsOk: true when they say they want someone nearby / close to their age / that kids are fine either way.
@@ -59,12 +62,13 @@ Field guidance:
 
 Reply guidance:
 - Confirm briefly what you just learned and that you saved it to their profile.
-- If you set or changed "seeking", state plainly that you will only introduce them to that group.
+- If you set or changed "seeking", "minAge" or "maxAge", state plainly that you will only introduce them to people matching it.
+- Never claim to have saved a preference that has no field above. If they ask for something you cannot store, say so plainly instead.
 - Then ask ONE natural follow-up for the most useful thing still missing (age, city, kids, interests, or what matters in a partner).
 - Two or three sentences. Warm, plain language, no bullet points, no emoji spam. Never invent members or claim specific people are waiting.
 
 Return ONLY a JSON object, no prose around it and no code fences, shaped exactly:
-{"profile":{"age":null,"gender":null,"seeking":null,"city":null,"kids":null,"interests":[],"prefLocal":null,"prefSameAge":null,"prefKidsOk":null,"intro":null},"reply":"..."}`;
+{"profile":{"age":null,"gender":null,"seeking":null,"city":null,"kids":null,"minAge":null,"maxAge":null,"interests":[],"prefLocal":null,"prefSameAge":null,"prefKidsOk":null,"intro":null},"reply":"..."}`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
