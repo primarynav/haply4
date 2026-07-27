@@ -62,6 +62,8 @@ export interface CommunityCard {
   name: string;
   avatarSrc: string;
   loading: boolean;
+  /** True when shown to a signed-out visitor — the profile lookup requires an account, so we don't even try it. */
+  gated?: boolean;
   age?: number;
   city?: string;
   intro?: string;
@@ -742,6 +744,10 @@ export default function HaplyApp() {
       });
     },
     openMemberCard: (uid, name) => {
+      if (!user) {
+        setCommunityCard({ name, avatarSrc: generatedAvatarDataUri(uid, name.charAt(0)), loading: false, gated: true, interests: [] });
+        return;
+      }
       setCommunityCard({ name, avatarSrc: generatedAvatarDataUri(uid, name.charAt(0)), loading: true, interests: [] });
       void fetchPublicProfile(uid).then((p) => {
         setCommunityCard((c) =>

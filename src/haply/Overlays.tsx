@@ -263,7 +263,14 @@ export function CommunityCardModal({ h }: { h: H }) {
             </p>
           </div>
         </div>
-        {card.loading ? (
+        {card.gated ? (
+          <p style={{ color: '#78716C', fontSize: 14, margin: '20px 0 0' }}>
+            <button onClick={() => h.goGetStarted()} className="hvc-rose" style={{ background: 'none', border: 'none', color: '#e11d48', fontWeight: 600, cursor: 'pointer', padding: 0, fontSize: 14 }}>
+              Join free
+            </button>{' '}
+            to see {card.name}'s community profile.
+          </p>
+        ) : card.loading ? (
           <p style={{ color: '#78716C', fontSize: 14, margin: '20px 0 0' }}>Loading…</p>
         ) : (
           <>

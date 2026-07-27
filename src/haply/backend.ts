@@ -256,12 +256,21 @@ export interface PublicProfile {
   interests: string[];
 }
 
-/** Read-only card shown when tapping another real member's name in the community — never their private fields (email, postal). */
+/**
+ * Read-only card shown when tapping another real member's name in the community.
+ * Goes through the `get_community_profile` RPC rather than querying `profiles`
+ * directly — profiles are only readable row-by-row for yourself or a mutual
+ * verified dating match, so a plain select here would silently return nothing
+ * for most members. The RPC is a SECURITY DEFINER function scoped to return
+ * only these six public-safe columns, never full rows (see migration
+ * tighten_profile_read_policy).
+ */
 export async function fetchPublicProfile(uid: string): Promise<PublicProfile | null> {
   try {
-    const { data, error } = await supabase.from('profiles').select('name, age, city, kids, intro, interests').eq('id', uid).maybeSingle();
-    if (error || !data) return null;
-    return { name: data.name, age: data.age ?? undefined, city: data.city ?? undefined, kids: data.kids ?? undefined, intro: data.intro ?? undefined, interests: data.interests ?? [] };
+    const { data, error } = await supabase.rpc('get_community_profile', { member_id: uid });
+    const row = data?.[0];
+    if (error || !row) return null;
+    return { name: row.name, age: row.age ?? undefined, city: row.city ?? undefined, kids: row.kids ?? undefined, intro: row.intro ?? undefined, interests: row.interests ?? [] };
   } catch {
     return null;
   }
