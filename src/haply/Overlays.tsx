@@ -235,6 +235,56 @@ export function DetailModal({ h }: { h: H }) {
   );
 }
 
+/**
+ * Read-only community identity card — who posted or replied. No dating actions here
+ * (Like/Pass/Message belong to Discover); this is just "who is this". Covers two cases:
+ * a real member (fetched async by uid) and a demo post's matched pool profile (resolved
+ * synchronously) — both arrive pre-shaped as `h.communityCard`, so this renders either.
+ */
+export function CommunityCardModal({ h }: { h: H }) {
+  const card = h.communityCard;
+  if (!card) return null;
+  return (
+    <div onClick={h.closeCommunityCard} style={{ position: 'fixed', inset: 0, background: 'rgba(28,25,23,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 420, padding: 28, position: 'relative', animation: 'popin .25s ease', maxHeight: '90vh', overflowY: 'auto' }}>
+        <button onClick={h.closeCommunityCard} className="hvc-ink" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#78716C', padding: 4, display: 'flex' }}>
+          <Ic name="close" size={22} />
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <img src={card.avatarSrc} alt={card.name} style={{ width: 68, height: 68, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+          <div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {card.name}
+              {card.age ? `, ${card.age}` : ''}
+            </h3>
+            <p style={{ fontSize: 13, color: '#78716C', margin: '3px 0 0', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Ic name="verified" fill size={13} color="#16a34a" />
+              Haply member{card.city ? ` · ${card.city}` : ''}
+            </p>
+          </div>
+        </div>
+        {card.loading ? (
+          <p style={{ color: '#78716C', fontSize: 14, margin: '20px 0 0' }}>Loading…</p>
+        ) : (
+          <>
+            {card.intro && <p style={{ color: '#44403C', fontSize: 15, lineHeight: 1.6, margin: '20px 0 0' }}>{card.intro}</p>}
+            {card.interests.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '16px 0 0' }}>
+                {card.interests.map((i) => (
+                  <span key={i} style={{ background: '#F0E9E2', color: '#44403C', fontSize: 13, fontWeight: 600, padding: '5px 12px', borderRadius: 999 }}>
+                    {i}
+                  </span>
+                ))}
+              </div>
+            )}
+            {!card.intro && card.interests.length === 0 && <p style={{ color: '#78716C', fontSize: 14, margin: '20px 0 0' }}>This member hasn't filled out a bio yet.</p>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function MatchPop({ h }: { h: H }) {
   const p = h.matchPopId != null ? h.prof(h.matchPopId) : undefined;
   if (!p) return null;

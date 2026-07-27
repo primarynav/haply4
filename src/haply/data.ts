@@ -26,6 +26,8 @@ export interface Profile {
 export interface Post {
   id: number;
   name: string;
+  /** Set only for posts by a real signed-in account — the seeded community posts have none. */
+  userId?: string;
   cat: string;
   time: string;
   title: string;
@@ -110,14 +112,6 @@ export const CHAT_REPLIES: Record<number, string[]> = {
 export const POSTS: Post[] = COMMUNITY_POSTS;
 
 export const CATS = ['All Topics', 'Divorce Support', 'Co-Parenting', 'Dating Again', 'Success Stories', 'Self-Care'];
-
-export const AV_COLORS: [string, string][] = [
-  ['#FFE4E6', '#be123c'],
-  ['#E0E7FF', '#4338ca'],
-  ['#DCFCE7', '#15803d'],
-  ['#FEF3C7', '#b45309'],
-  ['#F3E8FF', '#7e22ce']
-];
 
 export const GROUPS: CityGroup[] = [
   { city: 'Seattle', vibe: 'Coffee walks & waterfront meetups' },

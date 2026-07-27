@@ -2,13 +2,30 @@ import { useEffect, useRef, useState } from 'react';
 import './styles.css';
 import { CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
 import { absorbMessage, buildIntros, countMatches, describeFilters, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
-import { createPost, fetchPosts, loadProfile, onAuth, saveProfile, setPostLike, signInEmail, signInProvider, signOutBackend, signUpEmail, type DbUser } from './backend';
+import {
+  createComment,
+  createPost,
+  fetchComments,
+  fetchPosts,
+  fetchPublicProfile,
+  loadProfile,
+  onAuth,
+  saveProfile,
+  setPostLike,
+  signInEmail,
+  signInProvider,
+  signOutBackend,
+  signUpEmail,
+  type Comment,
+  type DbUser
+} from './backend';
 import { aiTurn } from './aiMatchmaker';
+import { generatedAvatarDataUri } from './avatars';
 import { Landing } from './Landing';
 import { GetStarted } from './GetStarted';
 import { CommunityPublic } from './CommunityPublic';
 import { Dashboard } from './Dashboard';
-import { AuthModal, ChatDialog, DetailModal, MatchPop, Toast } from './Overlays';
+import { AuthModal, ChatDialog, CommunityCardModal, DetailModal, MatchPop, Toast } from './Overlays';
 
 export type Page = 'home' | 'get-started' | 'community' | 'dashboard';
 export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile';
@@ -37,6 +54,18 @@ export interface AiMsg {
   /** How many members cleared those filters in total. */
   total?: number;
   at?: string;
+}
+/** Unified shape for the community identity popover — a real member's public profile
+ *  (fetched by uid) or a demo post's matched pool profile (resolved synchronously), so
+ *  one modal renders both without the caller needing to know which. */
+export interface CommunityCard {
+  name: string;
+  avatarSrc: string;
+  loading: boolean;
+  age?: number;
+  city?: string;
+  intro?: string;
+  interests: string[];
 }
 export interface GsErr {
   intent?: boolean;
@@ -144,6 +173,18 @@ export interface H {
   setPostDraft: (v: string) => void;
   submitPost: () => void;
 
+  commentsOpen: Record<number, boolean>;
+  comments: Record<number, Comment[]>;
+  commentDrafts: Record<number, string>;
+  toggleComments: (postId: number) => void;
+  setCommentDraft: (postId: number, v: string) => void;
+  submitComment: (postId: number) => void;
+
+  communityCard: CommunityCard | null;
+  openDemoCard: (displayName: string, profile: Profile) => void;
+  openMemberCard: (uid: string, name: string) => void;
+  closeCommunityCard: () => void;
+
   prof: (id: number) => Profile | undefined;
 }
 
@@ -232,6 +273,10 @@ export default function HaplyApp() {
   const [postDraft, setPostDraft] = useState('');
   const [posts, setPosts] = useState<Post[]>(POSTS);
   const [postLikes, setPostLikes] = useState<Record<number, boolean>>({});
+  const [commentsOpen, setCommentsOpen] = useState<Record<number, boolean>>({});
+  const [comments, setComments] = useState<Record<number, Comment[]>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [communityCard, setCommunityCard] = useState<CommunityCard | null>(null);
 
   useEffect(() => () => clearTimeout(toastT.current), []);
 
@@ -654,6 +699,60 @@ export default function HaplyApp() {
       }
     },
 
+    commentsOpen,
+    comments,
+    commentDrafts,
+    toggleComments: (postId) => {
+      setCommentsOpen((co) => ({ ...co, [postId]: !co[postId] }));
+      if (!comments[postId]) {
+        void fetchComments(postId).then((cs) => {
+          if (cs) setComments((c) => ({ ...c, [postId]: cs }));
+        });
+      }
+    },
+    setCommentDraft: (postId, v) => setCommentDrafts((d) => ({ ...d, [postId]: v })),
+    submitComment: (postId) => {
+      const text = (commentDrafts[postId] || '').trim();
+      if (!text || !user?.id) return;
+      if (violatesLanguagePolicy(text)) {
+        showToast('Our safety bot flagged that wording — Haply runs on kindness. Please rephrase 💛');
+        return;
+      }
+      setCommentDrafts((d) => ({ ...d, [postId]: '' }));
+      void createComment(postId, user.id, user.name, text).then((c) => {
+        if (c) {
+          setComments((cs) => ({ ...cs, [postId]: [...(cs[postId] || []), c] }));
+          setPosts((ps) => ps.map((p) => (p.id === postId ? { ...p, comments: p.comments + 1 } : p)));
+        } else {
+          showToast("Couldn't post your reply right now — please try again.");
+        }
+      });
+    },
+
+    communityCard,
+    openDemoCard: (displayName, profile) => {
+      setCommunityCard({
+        name: displayName,
+        avatarSrc: profile.image,
+        loading: false,
+        age: profile.age,
+        city: profile.location,
+        intro: profile.bio,
+        interests: profile.interests
+      });
+    },
+    openMemberCard: (uid, name) => {
+      setCommunityCard({ name, avatarSrc: generatedAvatarDataUri(uid, name.charAt(0)), loading: true, interests: [] });
+      void fetchPublicProfile(uid).then((p) => {
+        setCommunityCard((c) =>
+          c && c.name === name
+            ? { ...c, loading: false, age: p?.age, city: p?.city, intro: p?.intro, interests: p?.interests ?? [] }
+            : c
+        );
+      });
+    },
+    closeCommunityCard: () => setCommunityCard(null),
+
     prof
   };
 
@@ -667,6 +766,7 @@ export default function HaplyApp() {
       {chatId !== null && <ChatDialog h={h} />}
       {detailId !== null && <DetailModal h={h} />}
       {matchPopId !== null && <MatchPop h={h} />}
+      {communityCard && <CommunityCardModal h={h} />}
       {toast && <Toast text={toast} />}
     </>
   );

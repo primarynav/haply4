@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENTS, PROFILES, type Profile } from './data';
 import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, filteredPosts } from './CommunityPublic';
+import { generatedAvatarDataUri } from './avatars';
 import { Ic, Logo, serif } from './ui';
 import type { Intro, UserProfile } from './matchmaker';
 import { detectByIp, detectPrecise, detectQuietly, type DetectedLocation } from './geolocate';
@@ -95,8 +96,8 @@ function CommunityTab({ h }: { h: H }) {
         </div>
         <Composer h={h} dash />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {filteredPosts(h).map((po, i) => (
-            <PostCard key={po.id} post={po} index={i} h={h} />
+          {filteredPosts(h).map((po) => (
+            <PostCard key={po.id} post={po} h={h} />
           ))}
         </div>
       </div>
@@ -936,7 +937,7 @@ function ProfileTab({ h }: { h: H }) {
       </div>
       <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div style={{ width: 92, height: 92, borderRadius: '50%', background: '#FFE4E6', color: '#be123c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700 }}>{h.userInitial}</div>
+          <img src={generatedAvatarDataUri(h.user?.id || h.userName, h.userInitial)} alt="" style={{ width: 92, height: 92, borderRadius: '50%', flexShrink: 0 }} />
           <div>
             <h3 style={{ fontSize: 24, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
               {h.userName}{' '}

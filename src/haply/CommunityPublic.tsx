@@ -1,4 +1,5 @@
-import { AV_COLORS, CATS, type Post } from './data';
+import { avatarForPost, generatedAvatarDataUri } from './avatars';
+import { CATS, type Post } from './data';
 import type { H } from './HaplyApp';
 import { Ic, Logo, serif } from './ui';
 
@@ -35,15 +36,27 @@ export function CatPills({ h, small }: { h: H; small?: boolean }) {
   );
 }
 
-export function PostCard({ post, index, h }: { post: Post; index: number; h: H }) {
+export function PostCard({ post, h }: { post: Post; h: H }) {
   const liked = !!h.postLikes[post.id];
-  const av = AV_COLORS[index % AV_COLORS.length];
+  const av = avatarForPost(post);
+  const onOpen = () => {
+    if (av.action.kind === 'demo-card') h.openDemoCard(post.name, av.action.profile);
+    else if (av.action.kind === 'member-card') h.openMemberCard(av.action.uid, post.name);
+  };
+  const clickable = av.action.kind !== 'none';
+  const open = !!h.commentsOpen[post.id];
+  const list = h.comments[post.id] || [];
   return (
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: '20px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0, background: av[0], color: av[1] }}>{post.name.charAt(0)}</div>
+        <img
+          src={av.src}
+          alt={post.name}
+          onClick={clickable ? onOpen : undefined}
+          style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, cursor: clickable ? 'pointer' : 'default', background: '#F0E9E2' }}
+        />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#211D1A', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div onClick={clickable ? onOpen : undefined} style={{ fontSize: 15, fontWeight: 600, color: '#211D1A', display: 'flex', alignItems: 'center', gap: 5, cursor: clickable ? 'pointer' : 'default', width: 'fit-content' }}>
             {post.name}
             <Ic name="verified" fill size={14} color="#16a34a" />
           </div>
@@ -58,11 +71,56 @@ export function PostCard({ post, index, h }: { post: Post; index: number; h: H }
           <Ic name="favorite" fill={liked} size={18} />
           {post.likes + (liked ? 1 : 0)}
         </button>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#78716C' }}>
+        <button onClick={() => h.toggleComments(post.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#78716C', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
           <Ic name="chat_bubble" size={18} />
           {post.comments}
-        </span>
+        </button>
       </div>
+      {open && (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #F0E9E2', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {list.map((c) => {
+            const cav = generatedAvatarDataUri(c.userId, c.name.charAt(0));
+            return (
+              <div key={c.id} style={{ display: 'flex', gap: 10 }}>
+                <img src={cav} alt={c.name} onClick={() => h.openMemberCard(c.userId, c.name)} style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, cursor: 'pointer' }} />
+                <div style={{ background: '#FAF7F4', borderRadius: 12, padding: '8px 12px', flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span onClick={() => h.openMemberCard(c.userId, c.name)} style={{ fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                      {c.name}
+                    </span>
+                    <span style={{ fontSize: 11, color: '#A8A29E' }}>{c.time}</span>
+                  </div>
+                  <p style={{ fontSize: 14, color: '#44403C', margin: '2px 0 0', lineHeight: 1.5 }}>{c.body}</p>
+                </div>
+              </div>
+            );
+          })}
+          {list.length === 0 && <p style={{ fontSize: 13, color: '#A8A29E', margin: 0 }}>No replies yet — be the first.</p>}
+          {h.user ? (
+            <div style={{ display: 'flex', gap: 10 }}>
+              <img src={generatedAvatarDataUri(h.user.id || h.userName, h.userInitial)} alt="" style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Write a reply..."
+                value={h.commentDrafts[post.id] || ''}
+                onChange={(e) => h.setCommentDraft(post.id, e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') h.submitComment(post.id);
+                }}
+                className="fcb-rose"
+                style={{ flex: 1, border: '1px solid #EDE6DF', borderRadius: 999, padding: '8px 14px', fontSize: 14, outline: 'none', background: '#FAF7F4' }}
+              />
+            </div>
+          ) : (
+            <p style={{ fontSize: 13, color: '#78716C', margin: 0 }}>
+              <button onClick={h.goGetStarted} className="hvc-rose" style={{ background: 'none', border: 'none', color: '#e11d48', fontWeight: 600, cursor: 'pointer', padding: 0, fontSize: 13 }}>
+                Join free
+              </button>{' '}
+              to reply.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -71,7 +129,7 @@ export function Composer({ h, dash }: { h: H; dash?: boolean }) {
   return (
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: 16, marginBottom: dash ? 20 : 24 }}>
       <div style={{ display: 'flex', gap: 12 }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FFE4E6', color: '#be123c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{h.userInitial}</div>
+        <img src={generatedAvatarDataUri(h.user?.id || h.userName, h.userInitial)} alt="" style={{ width: 40, height: 40, borderRadius: '50%', flexShrink: 0 }} />
         <textarea
           placeholder={dash ? "What's on your mind? The community's listening…" : 'Share something with the community...'}
           value={h.postDraft}
@@ -125,8 +183,8 @@ export function CommunityPublic({ h }: { h: H }) {
           </div>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {filteredPosts(h).map((po, i) => (
-            <PostCard key={po.id} post={po} index={i} h={h} />
+          {filteredPosts(h).map((po) => (
+            <PostCard key={po.id} post={po} h={h} />
           ))}
         </div>
       </div>

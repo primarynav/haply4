@@ -135,6 +135,7 @@ function timeAgo(iso: string): string {
 
 interface PostRow {
   id: number;
+  user_id: string | null;
   author_name: string;
   cat: string;
   title: string;
@@ -149,7 +150,7 @@ export async function fetchPosts(uid?: string): Promise<{ posts: Post[]; myLikes
   try {
     const { data, error } = await supabase
       .from('posts')
-      .select('id, author_name, cat, title, body, pinned, created_at, post_likes(count), comments(count)')
+      .select('id, user_id, author_name, cat, title, body, pinned, created_at, post_likes(count), comments(count)')
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(50);
@@ -162,6 +163,7 @@ export async function fetchPosts(uid?: string): Promise<{ posts: Post[]; myLikes
     const posts: Post[] = (data as unknown as PostRow[]).map((r) => ({
       id: r.id,
       name: r.author_name,
+      userId: r.user_id ?? undefined,
       cat: r.cat,
       time: r.pinned ? 'Pinned' : timeAgo(r.created_at),
       title: r.title,
@@ -184,7 +186,7 @@ export async function createPost(uid: string, authorName: string, cat: string, t
       .select('id, author_name, cat, title, body, created_at')
       .single();
     if (error || !data) return null;
-    return { id: data.id, name: data.author_name, cat: data.cat, time: 'Just now', title: data.title, body: data.body, likes: 0, comments: 0 };
+    return { id: data.id, name: data.author_name, userId: uid, cat: data.cat, time: 'Just now', title: data.title, body: data.body, likes: 0, comments: 0 };
   } catch {
     return null;
   }
@@ -196,5 +198,71 @@ export async function setPostLike(postId: number, uid: string, liked: boolean): 
     else await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', uid);
   } catch {
     /* optimistic UI already applied */
+  }
+}
+
+export interface Comment {
+  id: number;
+  postId: number;
+  name: string;
+  userId: string;
+  body: string;
+  time: string;
+}
+
+interface CommentRow {
+  id: number;
+  post_id: number;
+  author_name: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+}
+
+export async function fetchComments(postId: number): Promise<Comment[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .select('id, post_id, author_name, user_id, body, created_at')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+    if (error || !data) return null;
+    return (data as CommentRow[]).map((r) => ({ id: r.id, postId: r.post_id, name: r.author_name, userId: r.user_id, body: r.body, time: timeAgo(r.created_at) }));
+  } catch {
+    return null;
+  }
+}
+
+export async function createComment(postId: number, uid: string, authorName: string, body: string): Promise<Comment | null> {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .insert({ post_id: postId, user_id: uid, author_name: authorName, body })
+      .select('id, post_id, author_name, user_id, body, created_at')
+      .single();
+    if (error || !data) return null;
+    return { id: data.id, postId: data.post_id, name: data.author_name, userId: data.user_id, body: data.body, time: 'Just now' };
+  } catch {
+    return null;
+  }
+}
+
+export interface PublicProfile {
+  name: string;
+  age?: number;
+  city?: string;
+  kids?: string;
+  intro?: string;
+  interests: string[];
+}
+
+/** Read-only card shown when tapping another real member's name in the community — never their private fields (email, postal). */
+export async function fetchPublicProfile(uid: string): Promise<PublicProfile | null> {
+  try {
+    const { data, error } = await supabase.from('profiles').select('name, age, city, kids, intro, interests').eq('id', uid).maybeSingle();
+    if (error || !data) return null;
+    return { name: data.name, age: data.age ?? undefined, city: data.city ?? undefined, kids: data.kids ?? undefined, intro: data.intro ?? undefined, interests: data.interests ?? [] };
+  } catch {
+    return null;
   }
 }
