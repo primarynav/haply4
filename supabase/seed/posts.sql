@@ -12,8 +12,9 @@
 -- here. Seeding realistic counts would need one row per like from a distinct
 -- user, since post_likes is keyed by (post_id, user_id).
 --
--- user_id is taken from an existing account because the column is very likely
--- NOT NULL and references auth.users. If yours permits NULL, drop that select.
+-- user_id is left NULL: the column is nullable, and these posts are not authored
+-- by any real account. Attributing them to a member's uuid would make them look
+-- like that person's posts to anything that reads user_id.
 
 with seed(pinned, author_name, cat, title, body, created_at) as (
   values
@@ -48,7 +49,7 @@ with seed(pinned, author_name, cat, title, body, created_at) as (
 )
 insert into public.posts (user_id, author_name, cat, title, body, pinned, created_at)
 select
-  (select id from auth.users order by created_at limit 1),
+  null,
   s.author_name, s.cat, s.title, s.body, s.pinned, s.created_at
 from seed s
 where not exists (select 1 from public.posts p where p.title = s.title);
