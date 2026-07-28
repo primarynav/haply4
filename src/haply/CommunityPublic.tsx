@@ -4,8 +4,18 @@ import { CATS, type Post } from './data';
 import type { H } from './HaplyApp';
 import { Ic, Logo, serif } from './ui';
 
+/** A post's combined engagement — upvotes plus replies — used to rank the "Top" sort. */
+function engagementScore(h: H, p: Post): number {
+  return p.likes + (h.postLikes[p.id] ? 1 : 0) + p.comments;
+}
+
 export function filteredPosts(h: H): Post[] {
-  return h.commCat === 'All Topics' ? h.posts : h.posts.filter((p) => p.cat === h.commCat);
+  const byCat = h.commCat === 'All Topics' ? h.posts : h.posts.filter((p) => p.cat === h.commCat);
+  // Pinned posts (staff announcements) always lead, regardless of sort — same convention as a subreddit's sticky post.
+  const pinned = byCat.filter((p) => p.time === 'Pinned');
+  const rest = byCat.filter((p) => p.time !== 'Pinned');
+  if (h.commSort === 'new') return [...pinned, ...rest];
+  return [...pinned, ...rest.sort((a, b) => engagementScore(h, b) - engagementScore(h, a))];
 }
 
 export function CatPills({ h, small }: { h: H; small?: boolean }) {
@@ -37,6 +47,43 @@ export function CatPills({ h, small }: { h: H; small?: boolean }) {
   );
 }
 
+export function SortToggle({ h }: { h: H }) {
+  const options = [
+    { key: 'top' as const, label: 'Top', icon: 'trending_up' },
+    { key: 'new' as const, label: 'New', icon: 'schedule' }
+  ];
+  return (
+    <div style={{ display: 'flex', gap: 4, background: '#F0E9E2', borderRadius: 999, padding: 4, flexShrink: 0 }}>
+      {options.map((o) => {
+        const on = h.commSort === o.key;
+        return (
+          <button
+            key={o.key}
+            onClick={() => h.setCommSort(o.key)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              border: 'none',
+              borderRadius: 999,
+              padding: '7px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: on ? '#fff' : 'transparent',
+              color: on ? '#211D1A' : '#78716C',
+              boxShadow: on ? '0 1px 3px rgba(33,29,26,0.12)' : 'none'
+            }}
+          >
+            <Ic name={o.icon} size={15} />
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function PostCard({ post, h }: { post: Post; h: H }) {
   const liked = !!h.postLikes[post.id];
   const av = avatarForPost(post);
@@ -55,30 +102,37 @@ export function PostCard({ post, h }: { post: Post; h: H }) {
     </>
   );
   return (
-    <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: '20px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        {av.target ? (
-          <IdentityLink h={h} target={av.target} style={{ flex: 1 }}>
-            {nameBlock}
-          </IdentityLink>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>{nameBlock}</div>
-        )}
-        <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>{post.cat}</span>
-      </div>
-      <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 6px', color: '#211D1A' }}>{post.title}</h3>
-      <p style={{ fontSize: 15, color: '#44403C', margin: '0 0 14px', lineHeight: 1.6 }}>{post.body}</p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <button onClick={() => h.togglePostLike(post.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0, color: liked ? '#e11d48' : '#78716C' }}>
-          <Ic name="favorite" fill={liked} size={18} />
-          {post.likes + (liked ? 1 : 0)}
+    <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, display: 'flex' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '18px 10px', width: 48, flexShrink: 0, borderRight: '1px solid #F0E9E2' }}>
+        <button
+          onClick={() => h.togglePostLike(post.id)}
+          title="Upvote"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', color: liked ? '#e11d48' : '#A8A29E' }}
+        >
+          <Ic name="arrow_upward" fill={liked} size={22} />
         </button>
-        <button onClick={() => h.toggleComments(post.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#78716C', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-          <Ic name="chat_bubble" size={18} />
-          {post.comments}
-        </button>
+        <span style={{ fontSize: 13, fontWeight: 700, color: liked ? '#e11d48' : '#44403C' }}>{post.likes + (liked ? 1 : 0)}</span>
       </div>
-      {open && (
+      <div style={{ flex: 1, minWidth: 0, padding: '20px 24px 20px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          {av.target ? (
+            <IdentityLink h={h} target={av.target} style={{ flex: 1 }}>
+              {nameBlock}
+            </IdentityLink>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>{nameBlock}</div>
+          )}
+          <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>{post.cat}</span>
+        </div>
+        <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 6px', color: '#211D1A' }}>{post.title}</h3>
+        <p style={{ fontSize: 15, color: '#44403C', margin: '0 0 14px', lineHeight: 1.6 }}>{post.body}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <button onClick={() => h.toggleComments(post.id)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: '#78716C', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <Ic name="chat_bubble" size={18} />
+            {post.comments}
+          </button>
+        </div>
+        {open && (
         <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid #F0E9E2', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {list.map((c) => {
             const cav = generatedAvatarDataUri(c.userId, c.name.charAt(0));
@@ -124,7 +178,8 @@ export function PostCard({ post, h }: { post: Post; h: H }) {
             </p>
           )}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -170,8 +225,11 @@ export function CommunityPublic({ h }: { h: H }) {
         </div>
       </div>
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '36px clamp(16px,4vw,32px)' }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
-          <CatPills h={h} />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <CatPills h={h} />
+          </div>
+          <SortToggle h={h} />
         </div>
         {h.user ? (
           <Composer h={h} />

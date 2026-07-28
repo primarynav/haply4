@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENTS, PROFILES, type Profile } from './data';
 import type { DashTab, H } from './HaplyApp';
-import { CatPills, Composer, PostCard, filteredPosts } from './CommunityPublic';
+import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './CommunityPublic';
 import { generatedAvatarDataUri } from './avatars';
 import { Ic, Logo, serif } from './ui';
 import type { Intro, UserProfile } from './matchmaker';
@@ -91,8 +91,11 @@ function CommunityTab({ h }: { h: H }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }} data-rs="1">
       <div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-          <CatPills h={h} small />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <CatPills h={h} small />
+          </div>
+          <SortToggle h={h} />
         </div>
         <Composer h={h} dash />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

@@ -28,6 +28,7 @@ import { Dashboard } from './Dashboard';
 import { AuthModal, ChatDialog, DetailModal, MatchPop, Toast } from './Overlays';
 
 export type Page = 'home' | 'get-started' | 'community' | 'dashboard' | 'community-profile';
+export type CommSort = 'top' | 'new';
 export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile';
 export type Intent = '' | 'community' | 'dating' | 'both';
 export type AuthType = 'login' | 'signup';
@@ -154,6 +155,8 @@ export interface H {
 
   commCat: string;
   setCommCat: (c: string) => void;
+  commSort: CommSort;
+  setCommSort: (s: CommSort) => void;
   posts: Post[];
   postLikes: Record<number, boolean>;
   togglePostLike: (id: number) => void;
@@ -257,6 +260,7 @@ export default function HaplyApp() {
   const toastT = useRef<ReturnType<typeof setTimeout>>();
 
   const [commCat, setCommCat] = useState('All Topics');
+  const [commSort, setCommSort] = useState<CommSort>('top');
   const [postDraft, setPostDraft] = useState('');
   const [posts, setPosts] = useState<Post[]>(POSTS);
   const [postLikes, setPostLikes] = useState<Record<number, boolean>>({});
@@ -649,12 +653,18 @@ export default function HaplyApp() {
 
     commCat,
     setCommCat,
+    commSort,
+    setCommSort,
     posts,
     postLikes,
     togglePostLike: (id) => {
+      if (!user?.id) {
+        showToast('Join free to upvote');
+        return;
+      }
       const nowLiked = !postLikes[id];
       setPostLikes((pl) => ({ ...pl, [id]: nowLiked }));
-      if (user?.id) void setPostLike(id, user.id, nowLiked);
+      void setPostLike(id, user.id, nowLiked);
     },
     postDraft,
     setPostDraft,
