@@ -45,13 +45,15 @@ export function Dashboard({ h }: { h: H }) {
         </div>
       </header>
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px clamp(16px,4vw,32px)' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', background: '#F0E9E2', borderRadius: 24, padding: 4, gap: 4, marginBottom: 24, maxWidth: 720 }}>
+        {/* Even 5-up grid rather than flex, so every tab is exactly the same
+            width regardless of label length ("Matchmaker" vs "Matches"). */}
+        <nav className="dash-nav" role="tablist" aria-label="Main" style={{ background: '#F0E9E2', borderRadius: 999, padding: 5, gap: 4, marginBottom: 24, width: '100%' }}>
           <TabBtn h={h} tab="community" icon="diversity_1" label="Community" onClick={() => h.setDashTab('community')} />
           <TabBtn h={h} tab="discover" icon="explore" label="Discover" onClick={h.tabDiscover} />
           <TabBtn h={h} tab="ai-match" icon="forum" label="Matchmaker" onClick={h.tabAI} />
           <TabBtn h={h} tab="matches" icon="favorite" label="Matches" onClick={() => h.setDashTab('matches')} />
           <TabBtn h={h} tab="messages" icon="chat_bubble" label="Messages" onClick={() => h.setDashTab('messages')} />
-        </div>
+        </nav>
 
         {h.dashTab === 'community' && <CommunityTab h={h} />}
         {h.dashTab === 'discover' && <DiscoverTab h={h} />}
@@ -69,25 +71,34 @@ function TabBtn({ h, tab, icon, label, onClick }: { h: H; tab: DashTab; icon: st
   return (
     <button
       onClick={onClick}
+      className="dash-tab"
+      role="tab"
+      aria-selected={on}
+      // Drives the hover and focus rules in styles.css, which must not fight
+      // the selected pill.
+      data-on={on ? '1' : undefined}
       style={{
-        flex: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 7,
+        minWidth: 0,
         border: 'none',
         borderRadius: 999,
-        padding: 9,
+        padding: '10px 8px',
         fontSize: 14,
         fontWeight: 600,
         cursor: 'pointer',
-        background: on ? '#fff' : 'transparent',
-        color: on ? '#211D1A' : '#78716C',
-        boxShadow: on ? '0 1px 3px rgba(33,29,26,0.12)' : 'none'
+        transition: 'background .18s ease, color .18s ease',
+        background: on ? '#e11d48' : 'transparent',
+        color: on ? '#fff' : '#78716C',
+        boxShadow: on ? '0 1px 4px rgba(225,27,72,0.32)' : 'none'
       }}
     >
-      <Ic name={icon} size={17} />
-      {label}
+      <Ic name={icon} fill={on} size={17} />
+      <span className="dash-tab-label" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
     </button>
   );
 }
