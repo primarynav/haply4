@@ -73,19 +73,22 @@ export function generatedAvatarDataUri(seed: string, initial: string): string {
 
 export interface PostAvatar {
   src: string;
-  /** What clicking the avatar/name should do. Demo cards carry their own display data —
-   *  the post's own name, not the matched pool profile's, so identity stays consistent. */
-  action: { kind: 'demo-card'; profile: Profile } | { kind: 'member-card'; uid: string } | { kind: 'none' };
+  /** Who the hover card / profile page should resolve to — the post's own display
+   *  name, not the matched pool profile's, so a demo post's identity stays consistent. */
+  target: ProfileTarget | null;
 }
+
+/** Identifies whose community identity a hover card or profile page is showing. */
+export type ProfileTarget = { kind: 'demo'; profile: Profile; displayName: string } | { kind: 'member'; uid: string; name: string };
 
 export function avatarForPost(post: Post): PostAvatar {
   if (post.name === 'Haply Team') {
-    return { src: generatedAvatarDataUri('haply-team', 'H'), action: { kind: 'none' } };
+    return { src: generatedAvatarDataUri('haply-team', 'H'), target: null };
   }
   if (post.userId) {
-    return { src: generatedAvatarDataUri(post.userId, post.name.charAt(0)), action: { kind: 'member-card', uid: post.userId } };
+    return { src: generatedAvatarDataUri(post.userId, post.name.charAt(0)), target: { kind: 'member', uid: post.userId, name: post.name } };
   }
   const match = demoMatchForPost(post);
-  if (match) return { src: match.image, action: { kind: 'demo-card', profile: match } };
-  return { src: generatedAvatarDataUri(post.name, post.name.charAt(0)), action: { kind: 'none' } };
+  if (match) return { src: match.image, target: { kind: 'demo', profile: match, displayName: post.name } };
+  return { src: generatedAvatarDataUri(post.name, post.name.charAt(0)), target: null };
 }

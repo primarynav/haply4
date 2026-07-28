@@ -7,7 +7,6 @@ import {
   createPost,
   fetchComments,
   fetchPosts,
-  fetchPublicProfile,
   loadProfile,
   onAuth,
   saveProfile,
@@ -20,14 +19,15 @@ import {
   type DbUser
 } from './backend';
 import { aiTurn } from './aiMatchmaker';
-import { generatedAvatarDataUri } from './avatars';
+import type { ProfileTarget } from './avatars';
 import { Landing } from './Landing';
 import { GetStarted } from './GetStarted';
 import { CommunityPublic } from './CommunityPublic';
+import { CommunityProfilePage } from './CommunityProfile';
 import { Dashboard } from './Dashboard';
-import { AuthModal, ChatDialog, CommunityCardModal, DetailModal, MatchPop, Toast } from './Overlays';
+import { AuthModal, ChatDialog, DetailModal, MatchPop, Toast } from './Overlays';
 
-export type Page = 'home' | 'get-started' | 'community' | 'dashboard';
+export type Page = 'home' | 'get-started' | 'community' | 'dashboard' | 'community-profile';
 export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile';
 export type Intent = '' | 'community' | 'dating' | 'both';
 export type AuthType = 'login' | 'signup';
@@ -54,20 +54,6 @@ export interface AiMsg {
   /** How many members cleared those filters in total. */
   total?: number;
   at?: string;
-}
-/** Unified shape for the community identity popover — a real member's public profile
- *  (fetched by uid) or a demo post's matched pool profile (resolved synchronously), so
- *  one modal renders both without the caller needing to know which. */
-export interface CommunityCard {
-  name: string;
-  avatarSrc: string;
-  loading: boolean;
-  /** True when shown to a signed-out visitor — the profile lookup requires an account, so we don't even try it. */
-  gated?: boolean;
-  age?: number;
-  city?: string;
-  intro?: string;
-  interests: string[];
 }
 export interface GsErr {
   intent?: boolean;
@@ -182,10 +168,9 @@ export interface H {
   setCommentDraft: (postId: number, v: string) => void;
   submitComment: (postId: number) => void;
 
-  communityCard: CommunityCard | null;
-  openDemoCard: (displayName: string, profile: Profile) => void;
-  openMemberCard: (uid: string, name: string) => void;
-  closeCommunityCard: () => void;
+  viewingProfile: ProfileTarget | null;
+  goToProfile: (target: ProfileTarget) => void;
+  backFromProfile: () => void;
 
   prof: (id: number) => Profile | undefined;
 }
@@ -278,7 +263,8 @@ export default function HaplyApp() {
   const [commentsOpen, setCommentsOpen] = useState<Record<number, boolean>>({});
   const [comments, setComments] = useState<Record<number, Comment[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  const [communityCard, setCommunityCard] = useState<CommunityCard | null>(null);
+  const [viewingProfile, setViewingProfile] = useState<ProfileTarget | null>(null);
+  const [profileReturnPage, setProfileReturnPage] = useState<Page>('community');
 
   useEffect(() => () => clearTimeout(toastT.current), []);
 
@@ -731,33 +717,13 @@ export default function HaplyApp() {
       });
     },
 
-    communityCard,
-    openDemoCard: (displayName, profile) => {
-      setCommunityCard({
-        name: displayName,
-        avatarSrc: profile.image,
-        loading: false,
-        age: profile.age,
-        city: profile.location,
-        intro: profile.bio,
-        interests: profile.interests
-      });
+    viewingProfile,
+    goToProfile: (target) => {
+      setProfileReturnPage(page);
+      setViewingProfile(target);
+      nav('community-profile');
     },
-    openMemberCard: (uid, name) => {
-      if (!user) {
-        setCommunityCard({ name, avatarSrc: generatedAvatarDataUri(uid, name.charAt(0)), loading: false, gated: true, interests: [] });
-        return;
-      }
-      setCommunityCard({ name, avatarSrc: generatedAvatarDataUri(uid, name.charAt(0)), loading: true, interests: [] });
-      void fetchPublicProfile(uid).then((p) => {
-        setCommunityCard((c) =>
-          c && c.name === name
-            ? { ...c, loading: false, age: p?.age, city: p?.city, intro: p?.intro, interests: p?.interests ?? [] }
-            : c
-        );
-      });
-    },
-    closeCommunityCard: () => setCommunityCard(null),
+    backFromProfile: () => nav(profileReturnPage),
 
     prof
   };
@@ -768,11 +734,11 @@ export default function HaplyApp() {
       {page === 'get-started' && <GetStarted h={h} />}
       {page === 'community' && <CommunityPublic h={h} />}
       {page === 'dashboard' && <Dashboard h={h} />}
+      {page === 'community-profile' && <CommunityProfilePage h={h} />}
       {authOpen && <AuthModal h={h} />}
       {chatId !== null && <ChatDialog h={h} />}
       {detailId !== null && <DetailModal h={h} />}
       {matchPopId !== null && <MatchPop h={h} />}
-      {communityCard && <CommunityCardModal h={h} />}
       {toast && <Toast text={toast} />}
     </>
   );

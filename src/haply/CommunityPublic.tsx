@@ -1,4 +1,5 @@
 import { avatarForPost, generatedAvatarDataUri } from './avatars';
+import { IdentityLink } from './CommunityIdentity';
 import { CATS, type Post } from './data';
 import type { H } from './HaplyApp';
 import { Ic, Logo, serif } from './ui';
@@ -39,29 +40,30 @@ export function CatPills({ h, small }: { h: H; small?: boolean }) {
 export function PostCard({ post, h }: { post: Post; h: H }) {
   const liked = !!h.postLikes[post.id];
   const av = avatarForPost(post);
-  const onOpen = () => {
-    if (av.action.kind === 'demo-card') h.openDemoCard(post.name, av.action.profile);
-    else if (av.action.kind === 'member-card') h.openMemberCard(av.action.uid, post.name);
-  };
-  const clickable = av.action.kind !== 'none';
   const open = !!h.commentsOpen[post.id];
   const list = h.comments[post.id] || [];
+  const nameBlock = (
+    <>
+      <img src={av.src} alt={post.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: '#F0E9E2' }} />
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#211D1A', display: 'flex', alignItems: 'center', gap: 5 }}>
+          {post.name}
+          <Ic name="verified" fill size={14} color="#16a34a" />
+        </div>
+        <div style={{ fontSize: 12, color: '#78716C' }}>{post.time}</div>
+      </div>
+    </>
+  );
   return (
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: '20px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <img
-          src={av.src}
-          alt={post.name}
-          onClick={clickable ? onOpen : undefined}
-          style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, cursor: clickable ? 'pointer' : 'default', background: '#F0E9E2' }}
-        />
-        <div style={{ flex: 1 }}>
-          <div onClick={clickable ? onOpen : undefined} style={{ fontSize: 15, fontWeight: 600, color: '#211D1A', display: 'flex', alignItems: 'center', gap: 5, cursor: clickable ? 'pointer' : 'default', width: 'fit-content' }}>
-            {post.name}
-            <Ic name="verified" fill size={14} color="#16a34a" />
-          </div>
-          <div style={{ fontSize: 12, color: '#78716C' }}>{post.time}</div>
-        </div>
+        {av.target ? (
+          <IdentityLink h={h} target={av.target} style={{ flex: 1 }}>
+            {nameBlock}
+          </IdentityLink>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>{nameBlock}</div>
+        )}
         <span style={{ background: '#FFF1F2', color: '#be123c', fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 999 }}>{post.cat}</span>
       </div>
       <h3 style={{ fontSize: 17, fontWeight: 600, margin: '0 0 6px', color: '#211D1A' }}>{post.title}</h3>
@@ -82,12 +84,14 @@ export function PostCard({ post, h }: { post: Post; h: H }) {
             const cav = generatedAvatarDataUri(c.userId, c.name.charAt(0));
             return (
               <div key={c.id} style={{ display: 'flex', gap: 10 }}>
-                <img src={cav} alt={c.name} onClick={() => h.openMemberCard(c.userId, c.name)} style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, cursor: 'pointer' }} />
+                <IdentityLink h={h} target={{ kind: 'member', uid: c.userId, name: c.name }} style={{ flexShrink: 0 }}>
+                  <img src={cav} alt={c.name} style={{ width: 30, height: 30, borderRadius: '50%' }} />
+                </IdentityLink>
                 <div style={{ background: '#FAF7F4', borderRadius: 12, padding: '8px 12px', flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <span onClick={() => h.openMemberCard(c.userId, c.name)} style={{ fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                      {c.name}
-                    </span>
+                    <IdentityLink h={h} target={{ kind: 'member', uid: c.userId, name: c.name }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{c.name}</span>
+                    </IdentityLink>
                     <span style={{ fontSize: 11, color: '#A8A29E' }}>{c.time}</span>
                   </div>
                   <p style={{ fontSize: 14, color: '#44403C', margin: '2px 0 0', lineHeight: 1.5 }}>{c.body}</p>
