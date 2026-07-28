@@ -6,16 +6,38 @@ import { encodeBase64 } from 'jsr:@std/encoding/base64';
 // chat loop (which uses haiku) — worth the stronger model.
 const MODEL = 'claude-sonnet-5';
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
+// This endpoint handles divorce decrees, so it does not answer to arbitrary
+// origins. ALLOWED_ORIGINS is a comma-separated env var; an unlisted origin gets
+// no CORS grant and the browser drops the response.
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://happilyeverafteragain.com')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+const corsFor = (req: Request): Record<string, string> => {
+  const origin = req.headers.get('Origin') ?? '';
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin'
+  };
+  if (ALLOWED_ORIGINS.includes(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  return headers;
+};
 
 const CLAIMED_STATUSES = ['divorced', 'legally_separated'] as const;
 const DECISIONS = ['approved', 'more_info_needed', 'rejected'] as const;
+
+// A consent record is only evidence if the server controls what can be written
+// into it. The client tells us which version it displayed, but it may only name
+// a version we actually shipped — an unrecognised string is rejected outright
+// rather than stored, so nobody can claim consent to wording that never existed.
+//
+// Both entries stay listed so the frontend and the functions can deploy in
+// either order without breaking submissions mid-rollout. Drop the older entry
+// once the new frontend is fully live.
+const KNOWN_CONSENT_VERSIONS = ['2026-07-v2', '2026-07-v1'] as const;
+const CURRENT_CONSENT_VERSION = KNOWN_CONSENT_VERSIONS[0];
 
 const SCHEMA = {
   type: 'object',
@@ -49,6 +71,8 @@ Hard rules:
 - Never fabricate a match. If you can't read a field, it's unknown — not evidence for or against the member.
 - Never describe this to the member as a "background check" anywhere in member_facing_message. Call it "divorce verification" only.
 - If the member's message or document appears to include a Social Security number or financial account number, do not transcribe or reason about it — it is not needed for this decision.
+- A divorce decree routinely contains information about people who are not the member and never consented to this review — the ex-spouse, and often minor children (names, dates of birth, custody and support terms). Never transcribe, summarize, or reason about any of it. It is irrelevant to whether this member is divorced.
+- "reasoning" is retained on the member's account after the document is deleted, so write it as a short, de-identified rationale — describe the category of problem, never the contents. Write "the name on the document does not match the name entered" or "the filing county differs from the one entered", never the actual names, case numbers, addresses, or dates you read. Two sentences at most.
 - Be specific and kind in member_facing_message when the outcome is not "approved" — say what was wrong and what to do next (e.g. "The uploaded document looks like a marriage certificate rather than a divorce decree — please upload the decree or certificate of dissolution instead"). Never write something that reads as an accusation with no path forward.
 - member_facing_message should be empty ("") when status is "approved" — nothing needs explaining.
 
@@ -68,6 +92,9 @@ interface RequestBody {
 }
 
 Deno.serve(async (req: Request) => {
+  const cors = corsFor(req);
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -108,19 +135,48 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'bad_request' }, 400);
   }
 
+  // Record the version the member was actually shown, but only if it is one we
+  // published. Anything else means a hand-rolled request, not a real consent.
+  const claimedConsent = consentVersion?.trim() ?? '';
+  if (!(KNOWN_CONSENT_VERSIONS as readonly string[]).includes(claimedConsent)) {
+    return json({ error: 'consent_outdated', currentVersion: CURRENT_CONSENT_VERSION }, 409);
+  }
+
+  // documentPath is attacker-controlled input. The download below runs as the
+  // service role, which bypasses storage RLS entirely, and this function returns
+  // the model's reading of that document back to the caller — so without this
+  // check a member could name another member's path and be read their decree.
+  // Uploads are written as `${uid}/...`, so the caller's own prefix is the whole
+  // authorization rule. Reject traversal outright rather than normalizing it.
+  const safePath = (documentPath ?? '').trim();
+  if (!safePath.startsWith(`${profileId}/`) || safePath.includes('..')) {
+    console.warn(`verify-divorce rejected cross-account documentPath for ${profileId}`);
+    return json({ error: 'forbidden' }, 403);
+  }
+
   const admin = createClient(supabaseUrl, serviceKey);
+
+  // Cap attempts per account per day. Bounds Anthropic spend on a public
+  // endpoint, and denies the volume a path-guessing attack would need.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: recentCount } = await admin
+    .from('divorce_verifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', profileId)
+    .gte('created_at', since);
+  if ((recentCount ?? 0) >= 10) return json({ error: 'rate_limited' }, 429);
 
   // The verification-docs bucket has no SELECT policy for regular members (by
   // design — a member can upload but not read back arbitrary files); only the
   // service role can retrieve it for this check.
-  const { data: fileData, error: fileErr } = await admin.storage.from('verification-docs').download(documentPath);
+  const { data: fileData, error: fileErr } = await admin.storage.from('verification-docs').download(safePath);
   if (fileErr || !fileData) return json({ error: 'document_not_found' }, 400);
 
   const bytes = new Uint8Array(await fileData.arrayBuffer());
   if (bytes.length > 20_000_000) return json({ error: 'document_too_large' }, 400);
   const base64 = encodeBase64(bytes);
 
-  const ext = documentPath.split('.').pop()?.toLowerCase() ?? '';
+  const ext = safePath.split('.').pop()?.toLowerCase() ?? '';
   const mediaType = ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
   const documentBlock =
     mediaType === 'application/pdf'
@@ -199,11 +255,18 @@ The attached document is the member's uploaded evidence. Inspect it and decide.`
   const { error: insertErr } = await admin.from('divorce_verifications').insert({
     profile_id: profileId,
     status_claimed: statusClaimed,
-    document_path: documentPath,
+    document_path: safePath,
     status,
-    reviewer_note: reasoning,
-    consent_version: consentVersion?.trim() || 'v1',
-    consented_at: new Date().toISOString()
+    // Capped: this is model prose about a legal document and is retained after
+    // the document itself is purged, so it stays a short rationale, not a copy.
+    reviewer_note: reasoning.slice(0, 600),
+    member_message: memberMessage.slice(0, 600),
+    // The version actually displayed to this member, validated against the list
+    // of versions we published — never a free-text value from the client.
+    consent_version: claimedConsent,
+    consented_at: new Date().toISOString(),
+    consent_ip: req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? null,
+    consent_user_agent: req.headers.get('user-agent')?.slice(0, 300) ?? null
   });
   if (insertErr) {
     console.error('verify-divorce insert failed:', insertErr.message);

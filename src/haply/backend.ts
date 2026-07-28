@@ -316,13 +316,17 @@ export async function fetchPublicProfile(uid: string): Promise<PublicProfile | n
 }
 
 /** Current version of the divorce-verification-specific consent (AI processing + public badge display) shown before upload. */
-export const VERIFICATION_CONSENT_VERSION = '2026-07-v1';
+export const VERIFICATION_CONSENT_VERSION = '2026-07-v2';
 
 export interface VerificationSubmission {
   id: string;
   status: 'pending' | 'approved' | 'rejected' | 'more_info_needed';
   statusClaimed: ClaimedStatus;
+  /** Internal rationale. Kept for the support chat's context — not shown to the member. */
   reviewerNote: string | null;
+  /** The explanation written for the member. This is what the UI displays. */
+  memberMessage: string | null;
+  escalatedAt: string | null;
   createdAt: string;
 }
 
@@ -331,13 +335,21 @@ export async function fetchLatestVerification(uid: string): Promise<Verification
   try {
     const { data, error } = await supabase
       .from('divorce_verifications')
-      .select('id, status, status_claimed, reviewer_note, created_at')
+      .select('id, status, status_claimed, reviewer_note, member_message, escalated_at, created_at')
       .eq('profile_id', uid)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (error || !data) return null;
-    return { id: data.id, status: data.status, statusClaimed: data.status_claimed, reviewerNote: data.reviewer_note, createdAt: data.created_at };
+    return {
+      id: data.id,
+      status: data.status,
+      statusClaimed: data.status_claimed,
+      reviewerNote: data.reviewer_note,
+      memberMessage: data.member_message,
+      escalatedAt: data.escalated_at,
+      createdAt: data.created_at
+    };
   } catch {
     return null;
   }
@@ -385,10 +397,31 @@ export interface AppealChatMessage {
 }
 
 /**
+ * Records a member's request for a person to review an automated verification
+ * decision. Deliberately not routed through the chat model — the right to human
+ * review has to be exercisable directly, not granted at an AI's discretion.
+ *
+ * This marks escalated_at for someone to action. It is a logged request, not a
+ * live handoff, so no copy anywhere may promise a response time.
+ */
+export async function requestHumanReview(verificationId: string): Promise<{ escalated?: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('verification-appeal-chat', {
+      body: { verificationId, action: 'request_human_review' }
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+    return { escalated: !!data?.escalated };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'unknown' };
+  }
+}
+
+/**
  * Support chat for a member whose verification was rejected or needs more info —
- * helps them fix and resubmit, or as a last resort tells them it's been escalated
- * (logged on the verification row for a human to eventually see; there is no
- * staffed review queue built yet, so this is a logged intent, not a live handoff).
+ * helps them fix and resubmit. It may also record a human-review request; there
+ * is no staffed review queue, so that is a logged intent, not a live handoff,
+ * and neither this chat nor the UI may state a turnaround time.
  */
 export async function appealChat(verificationId: string, messages: AppealChatMessage[]): Promise<{ reply?: string; escalated?: boolean; error?: string }> {
   try {

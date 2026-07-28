@@ -4,7 +4,7 @@ import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './CommunityPublic';
 import { DivorceVerification } from './DivorceVerification';
 import { generatedAvatarDataUri } from './avatars';
-import { Ic, Logo, serif } from './ui';
+import { Ic, Logo, TrustChip, serif } from './ui';
 import type { Intro, UserProfile } from './matchmaker';
 import { detectByIp, detectPrecise, detectQuietly, type DetectedLocation } from './geolocate';
 import { AGE_FLOOR, AGE_CEIL, RADIUS_STEPS, activeFilterCount, applyFilters, emptyFilters, filtersFromProfile, interestOptions, suggestRelax, type DiscoverFilters } from './discoverFilters';
@@ -22,10 +22,14 @@ export function Dashboard({ h }: { h: H }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#44403C', fontSize: 15 }} data-rs-hide="1">
               Hi, {h.userName}{' '}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
-                <Ic name="verified" fill size={13} />
-                Verified
-              </span>
+              {/* Only when this account actually passed verification — the header
+                  previously hardcoded "Verified" for every signed-in member. */}
+              {h.verification.divorceVerified && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
+                  <Ic name="verified" fill size={13} />
+                  Verified
+                </span>
+              )}
             </span>
             <button onClick={h.invite} className="hvc-rose" style={{ background: 'none', border: 'none', color: '#44403C', fontSize: 14, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
               <Ic name="person_add" size={17} />
@@ -886,8 +890,8 @@ function MatchesTab({ h }: { h: H }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <img src={mt.image} alt={mt.name} style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover' }} />
                 <div style={{ flex: 1 }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {mt.name}, {mt.age} <Ic name="verified" fill size={14} color="#16a34a" />
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {mt.name}, {mt.age} <TrustChip verified={mt.divorceVerified} demo={mt.demo} size={11} />
                   </h3>
                   <p style={{ fontSize: 13, color: '#78716C', margin: '2px 0 8px' }}>{mt.location}</p>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FFF1F2', color: '#be123c', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999 }}>
@@ -920,8 +924,8 @@ function MessagesTab({ h }: { h: H }) {
           <div key={mg.id} onClick={() => h.openChat(mg.id)} className="hvb-cream" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px', border: '1px solid #EDE6DF', borderRadius: 14, cursor: 'pointer', transition: 'background .15s' }}>
             <img src={mg.image} alt={mg.name} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
-                {mg.name} <Ic name="verified" fill size={13} color="#16a34a" />
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {mg.name} <TrustChip verified={mg.divorceVerified} demo={mg.demo} size={11} />
               </h3>
               <p style={{ fontSize: 14, color: '#57534E', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mg.last}</p>
             </div>

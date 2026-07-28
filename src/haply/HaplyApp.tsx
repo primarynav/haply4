@@ -5,6 +5,7 @@ import { absorbMessage, buildIntros, countMatches, describeFilters, emptyProfile
 import {
   acceptTerms,
   appealChat,
+  requestHumanReview,
   createComment,
   createPost,
   fetchComments,
@@ -194,6 +195,7 @@ export interface H {
   latestVerification: VerificationSubmission | null;
   submitVerification: (fields: DivorceVerificationFields, file: File) => Promise<{ status?: 'approved' | 'more_info_needed' | 'rejected'; message?: string; error?: string }>;
   appealChat: (verificationId: string, messages: AppealChatMessage[]) => Promise<{ reply?: string; escalated?: boolean; error?: string }>;
+  requestHumanReview: (verificationId: string) => Promise<{ escalated?: boolean; error?: string }>;
 
   prof: (id: number) => Profile | undefined;
 }
@@ -794,6 +796,7 @@ export default function HaplyApp() {
       return result;
     },
     appealChat: (verificationId, messages) => appealChat(verificationId, messages),
+    requestHumanReview: (verificationId) => requestHumanReview(verificationId),
 
     prof
   };

@@ -3,13 +3,21 @@ import { createClient } from 'npm:@supabase/supabase-js';
 
 const MODEL = 'claude-sonnet-5';
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS'
-};
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://happilyeverafteragain.com')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+const corsFor = (req: Request): Record<string, string> => {
+  const origin = req.headers.get('Origin') ?? '';
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin'
+  };
+  if (ALLOWED_ORIGINS.includes(origin)) headers['Access-Control-Allow-Origin'] = origin;
+  return headers;
+};
 
 const SCHEMA = {
   type: 'object',
@@ -21,24 +29,32 @@ const SCHEMA = {
   additionalProperties: false
 };
 
-// Per product decision: there is no staffed human-review queue. Claude handles
-// the verification decision (verify-divorce) AND the appeal conversation; a
-// "specialist will follow up by email within 24 hours" is the one fallback for
-// the rare case this bot can't resolve on its own, and that promise is only as
-// real as escalated_at being set here for someone to eventually act on.
-const SYSTEM = `You are Haply's verification support assistant. You are talking with a member whose divorce-verification submission did not come back "approved". You are part of onboarding support, not a general assistant — stay entirely inside this task.
+// This assistant must not invent a service level. Escalation records a request
+// for human review (escalated_at) and nothing more — there is no staffed queue
+// standing behind it, so the copy here promises only what the code actually
+// does: the request is logged and the member is emailed at SUPPORT_EMAIL if
+// they want to chase it. Telling a member "a specialist will email you within
+// 24 hours" when no specialist exists is a false statement made to a consumer
+// at their most aggrieved moment; it is also the sentence that gets quoted back
+// in a complaint. Keep this prompt and the member-facing copy in sync.
+const SUPPORT_EMAIL = Deno.env.get('SUPPORT_EMAIL') ?? 'support@happilyeverafteragain.com';
+
+const SYSTEM = `You are Haply's verification support assistant. You are an AI assistant, not a human, and you say so plainly if asked. You are talking with a member whose divorce-verification submission did not come back "approved". You are part of onboarding support, not a general assistant — stay entirely inside this task.
 
 You'll be told the claimed status, the decision status, and the reasoning from the original automated check, plus the conversation so far.
 
 Your job:
 - Explain plainly, in your own words, why the submission didn't pass — don't just repeat the reasoning verbatim.
 - If the issue is fixable (blurry photo, wrong document uploaded, a field that didn't match, an expired or partial scan), tell them exactly what to do and that they can resubmit through the verification form again. This covers the large majority of cases.
-- Only set "escalate" to true if, after genuinely engaging with what they've told you, you believe there may be a real error in the original decision that you cannot resolve yourself in this chat (e.g. they give a specific, plausible explanation for what looked like a mismatch — a legal name change, a common misread of unusual handwriting). Do not escalate just because they're unhappy or ask to "talk to a person" — escalate only when you've reached the genuine edge of what you can determine. When you do escalate, say plainly that you're passing this to a specialist who will follow up by email within 24 hours.
-- If this conversation was already escalated (you'll be told), don't escalate again — just reassure them it's in progress.
+- Set "escalate" to true whenever the member asks for a person to look at this, or when you believe there may be a real error in the original decision that you cannot resolve in this chat. A member is always entitled to human review of an automated decision — never talk them out of it, never require them to justify the request, and never tell them escalation is unnecessary.
+- If this conversation was already escalated (you'll be told), don't escalate again — just confirm the request is recorded.
 
 Hard rules:
 - Never claim to be human, and never say "background check" — call it "divorce verification" only.
+- Never state or imply a deadline, turnaround time, or service level. You do not know when anyone will respond. Do not say "within 24 hours", "shortly", "soon", or "a specialist will follow up" — none of that is something you can promise. When you escalate, say only that you have recorded a request for human review and that they can email ${SUPPORT_EMAIL} to follow up.
+- Never tell the member their document was, or will be, deleted, kept, or shared — you do not know, and our retention terms are in the Privacy Policy.
 - Never ask for or reason about a Social Security number or financial account number.
+- Never ask the member to re-send, describe, or type out contents of the decree in chat, and never ask about their ex-spouse or children. If they volunteer such details, do not repeat them back.
 - Keep replies short: 2-4 sentences, warm, concrete, no bullet-point lists.
 
 Return ONLY a JSON object, no prose around it and no code fences, shaped exactly:
@@ -50,6 +66,9 @@ interface ChatMsg {
 }
 
 Deno.serve(async (req: Request) => {
+  const cors = corsFor(req);
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
@@ -66,7 +85,7 @@ Deno.serve(async (req: Request) => {
   if (userErr || !userData?.user) return json({ error: 'unauthorized' }, 401);
   const profileId = userData.user.id;
 
-  let body: { verificationId?: string; messages?: ChatMsg[] };
+  let body: { verificationId?: string; messages?: ChatMsg[]; action?: string };
   try {
     body = await req.json();
   } catch {
@@ -74,6 +93,26 @@ Deno.serve(async (req: Request) => {
   }
 
   const verificationId = body.verificationId;
+
+  // A member's right to human review of an automated decision cannot depend on
+  // an AI agreeing to grant it. This path records the request directly, with no
+  // model in the loop and no justification required.
+  if (body.action === 'request_human_review') {
+    if (!verificationId) return json({ error: 'bad_request' }, 400);
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: row, error: rowErr } = await admin
+      .from('divorce_verifications')
+      .select('id, escalated_at')
+      .eq('id', verificationId)
+      .eq('profile_id', profileId)
+      .maybeSingle();
+    if (rowErr || !row) return json({ error: 'not_found' }, 404);
+    if (!row.escalated_at) {
+      await admin.from('divorce_verifications').update({ escalated_at: new Date().toISOString() }).eq('id', verificationId);
+    }
+    return json({ escalated: true });
+  }
+
   const history = (body.messages ?? []).slice(-20).filter((m) => (m.role === 'me' || m.role === 'agent') && typeof m.text === 'string' && m.text.trim());
   if (!verificationId || !history.length) return json({ error: 'bad_request' }, 400);
 

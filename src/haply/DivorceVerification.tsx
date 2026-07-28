@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { H } from './HaplyApp';
 import type { AppealChatMessage, ClaimedStatus } from './backend';
-import { VERIFICATION_CONSENT } from './legalContent';
+import { SUPPORT_EMAIL, VERIFICATION_CONSENT } from './legalContent';
 import { Ic, serif } from './ui';
 
 type Step = 'idle' | 'consent' | 'form' | 'submitting' | 'appeal';
@@ -25,6 +25,7 @@ export function DivorceVerification({ h }: { h: H }) {
   const [step, setStep] = useState<Step>('idle');
   const [consentAi, setConsentAi] = useState(false);
   const [consentBadge, setConsentBadge] = useState(false);
+  const [consentRedact, setConsentRedact] = useState(false);
 
   const [statusClaimed, setStatusClaimed] = useState<ClaimedStatus>('divorced');
   const [legalNameAtDivorce, setLegalNameAtDivorce] = useState('');
@@ -41,8 +42,19 @@ export function DivorceVerification({ h }: { h: H }) {
   const [appealSending, setAppealSending] = useState(false);
   const [escalated, setEscalated] = useState(false);
 
+  const [humanReviewRequested, setHumanReviewRequested] = useState(!!h.latestVerification?.escalatedAt);
+  const [requestingHuman, setRequestingHuman] = useState(false);
+
   const v = h.verification;
   const latest = h.latestVerification;
+
+  const askForHuman = async () => {
+    if (!latest || requestingHuman) return;
+    setRequestingHuman(true);
+    const res = await h.requestHumanReview(latest.id);
+    setRequestingHuman(false);
+    if (!res.error) setHumanReviewRequested(true);
+  };
 
   if (v.divorceVerified) {
     return (
@@ -84,8 +96,12 @@ export function DivorceVerification({ h }: { h: H }) {
           </button>
         </div>
         {escalated && (
-          <p style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 13, borderRadius: 10, padding: '8px 12px', margin: '0 0 12px' }}>
-            This has been escalated to a specialist — expect an email update within 24 hours.
+          <p style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 13, borderRadius: 10, padding: '8px 12px', margin: '0 0 12px', lineHeight: 1.5 }}>
+            Your request for human review has been recorded. We can't promise a turnaround time — to follow up, email{' '}
+            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#166534', fontWeight: 600 }}>
+              {SUPPORT_EMAIL}
+            </a>
+            .
           </p>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 280, overflowY: 'auto', marginBottom: 12 }}>
@@ -118,11 +134,11 @@ export function DivorceVerification({ h }: { h: H }) {
   }
 
   if (step === 'consent') {
-    const canContinue = consentAi && consentBadge;
+    const canContinue = consentAi && consentBadge && consentRedact;
     return (
       <div style={cardStyle}>
         <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>Before you upload</h3>
-        <p style={{ color: '#78716C', fontSize: 13, margin: '0 0 16px' }}>Two things to confirm — then we'll ask for your details and document.</p>
+        <p style={{ color: '#78716C', fontSize: 13, margin: '0 0 16px' }}>Please read these — then we'll ask for your details and document.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 18 }}>
           {VERIFICATION_CONSENT.map((s) => (
             <div key={s.heading}>
@@ -133,11 +149,15 @@ export function DivorceVerification({ h }: { h: H }) {
         </div>
         <button onClick={() => setConsentAi(!consentAi)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, marginBottom: 10, width: '100%' }}>
           <Ic name={consentAi ? 'check_circle' : 'radio_button_unchecked'} fill={consentAi} size={19} color={consentAi ? '#16a34a' : '#A8A29E'} style={{ marginTop: 1, flexShrink: 0 }} />
-          <span style={{ fontSize: 13, color: '#44403C', lineHeight: 1.5 }}>I consent to Haply using AI to review the details and document I submit.</span>
+          <span style={{ fontSize: 13, color: '#44403C', lineHeight: 1.5 }}>I consent to Haply using AI to review the details and document I submit, and I understand no person reviews it first.</span>
         </button>
-        <button onClick={() => setConsentBadge(!consentBadge)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, marginBottom: 18, width: '100%' }}>
+        <button onClick={() => setConsentBadge(!consentBadge)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, marginBottom: 10, width: '100%' }}>
           <Ic name={consentBadge ? 'check_circle' : 'radio_button_unchecked'} fill={consentBadge} size={19} color={consentBadge ? '#16a34a' : '#A8A29E'} style={{ marginTop: 1, flexShrink: 0 }} />
-          <span style={{ fontSize: 13, color: '#44403C', lineHeight: 1.5 }}>I understand my resulting verification badge will be shown to other members.</span>
+          <span style={{ fontSize: 13, color: '#44403C', lineHeight: 1.5 }}>I understand my badge will be shown to other members, and that it does not verify my identity.</span>
+        </button>
+        <button onClick={() => setConsentRedact(!consentRedact)} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, marginBottom: 18, width: '100%' }}>
+          <Ic name={consentRedact ? 'check_circle' : 'radio_button_unchecked'} fill={consentRedact} size={19} color={consentRedact ? '#16a34a' : '#A8A29E'} style={{ marginTop: 1, flexShrink: 0 }} />
+          <span style={{ fontSize: 13, color: '#44403C', lineHeight: 1.5 }}>I've blacked out Social Security and account numbers, and any children's details.</span>
         </button>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => setStep('idle')} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '10px 18px', fontSize: 14, fontWeight: 600, color: '#44403C', cursor: 'pointer' }}>
@@ -169,7 +189,15 @@ export function DivorceVerification({ h }: { h: H }) {
         file
       );
       if (res.error) {
-        setFormError(res.error === 'not_configured' ? 'Verification is temporarily unavailable — please try again later.' : "Something went wrong submitting your verification — please try again.");
+        const message =
+          res.error === 'not_configured'
+            ? 'Verification is temporarily unavailable — please try again later.'
+            : res.error === 'consent_outdated'
+              ? 'Our verification terms have been updated — please reload the page and read them before submitting.'
+              : res.error === 'rate_limited'
+                ? "You've made several attempts today — please try again tomorrow, or ask for a human review."
+                : 'Something went wrong submitting your verification — please try again.';
+        setFormError(message);
         setStep('form');
         return;
       }
@@ -237,7 +265,9 @@ export function DivorceVerification({ h }: { h: H }) {
               {submitting ? 'Reviewing…' : 'Submit for review'}
             </button>
           </div>
-          <p style={{ fontSize: 12, color: '#A8A29E', margin: 0 }}>Usually takes under a minute. We'll always have a decision or update within 24 hours.</p>
+          <p style={{ fontSize: 12, color: '#A8A29E', margin: 0, lineHeight: 1.5 }}>
+            An AI reviews this, usually in under a minute. If you disagree with the result you can ask for a person to review it.
+          </p>
         </div>
       </div>
     );
@@ -252,7 +282,8 @@ export function DivorceVerification({ h }: { h: H }) {
           <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Verify your status</h3>
           <StatusBadge status={status} />
         </div>
-        {latest.reviewerNote && <p style={{ color: '#57534E', fontSize: 14, margin: '0 0 16px', lineHeight: 1.55 }}>{latest.reviewerNote}</p>}
+        {/* The member-facing explanation, not the internal rationale. */}
+        {latest.memberMessage && <p style={{ color: '#57534E', fontSize: 14, margin: '0 0 16px', lineHeight: 1.55 }}>{latest.memberMessage}</p>}
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => setStep('consent')} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
             Try again
@@ -268,6 +299,31 @@ export function DivorceVerification({ h }: { h: H }) {
           >
             Chat with support
           </button>
+        </div>
+        {/* An AI made this decision, so the route to a person must be visible
+            here and not buried behind a conversation with another AI. */}
+        <div style={{ borderTop: '1px solid #F0E9E2', marginTop: 16, paddingTop: 12 }}>
+          {humanReviewRequested ? (
+            <p style={{ fontSize: 13, color: '#166534', margin: 0, lineHeight: 1.5 }}>
+              Human review requested. We can't promise a turnaround time — to follow up, email{' '}
+              <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#166534', fontWeight: 600 }}>
+                {SUPPORT_EMAIL}
+              </a>
+              .
+            </p>
+          ) : (
+            <p style={{ fontSize: 13, color: '#78716C', margin: 0, lineHeight: 1.5 }}>
+              This decision was made by an AI.{' '}
+              <button
+                onClick={() => void askForHuman()}
+                disabled={requestingHuman}
+                style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: '#e11d48', fontWeight: 600, textDecoration: 'underline', cursor: requestingHuman ? 'default' : 'pointer' }}
+              >
+                {requestingHuman ? 'Requesting…' : 'Request human review'}
+              </button>{' '}
+              — no reason needed.
+            </p>
+          )}
         </div>
       </div>
     );
