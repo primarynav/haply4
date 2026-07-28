@@ -2,15 +2,42 @@ import { useEffect, useRef, useState } from 'react';
 import './styles.css';
 import { CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
 import { absorbMessage, buildIntros, countMatches, describeFilters, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
-import { createPost, fetchPosts, loadProfile, onAuth, saveProfile, setPostLike, signInEmail, signInProvider, signOutBackend, signUpEmail, type DbUser } from './backend';
+import {
+  acceptTerms,
+  appealChat,
+  createComment,
+  createPost,
+  fetchComments,
+  fetchLatestVerification,
+  fetchPosts,
+  loadProfile,
+  onAuth,
+  saveProfile,
+  setPostLike,
+  signInEmail,
+  signInProvider,
+  signOutBackend,
+  signUpEmail,
+  submitDivorceVerification,
+  TERMS_VERSION,
+  type AppealChatMessage,
+  type Comment,
+  type DbUser,
+  type DivorceVerificationFields,
+  type VerificationInfo,
+  type VerificationSubmission
+} from './backend';
 import { aiTurn } from './aiMatchmaker';
+import type { ProfileTarget } from './avatars';
 import { Landing } from './Landing';
 import { GetStarted } from './GetStarted';
 import { CommunityPublic } from './CommunityPublic';
+import { CommunityProfilePage } from './CommunityProfile';
 import { Dashboard } from './Dashboard';
-import { AuthModal, ChatDialog, DetailModal, MatchPop, Toast } from './Overlays';
+import { AuthModal, ChatDialog, DetailModal, LegalModal, MatchPop, Toast } from './Overlays';
 
-export type Page = 'home' | 'get-started' | 'community' | 'dashboard';
+export type Page = 'home' | 'get-started' | 'community' | 'dashboard' | 'community-profile';
+export type CommSort = 'top' | 'new';
 export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile';
 export type Intent = '' | 'community' | 'dating' | 'both';
 export type AuthType = 'login' | 'signup';
@@ -91,10 +118,16 @@ export interface H {
   setAuthEmail: (v: string) => void;
   authPassword: string;
   setAuthPassword: (v: string) => void;
+  authTermsChecked: boolean;
+  setAuthTermsChecked: (v: boolean) => void;
   authError: string;
   authSubmit: () => void;
   socialAuth: (provider: 'Google' | 'Facebook' | 'Apple') => void;
   closeAuth: () => void;
+
+  legalSection: 'terms' | 'privacy' | null;
+  openLegal: (section: 'terms' | 'privacy') => void;
+  closeLegal: () => void;
 
   dashTab: DashTab;
   setDashTab: (t: DashTab) => void;
@@ -137,12 +170,30 @@ export interface H {
 
   commCat: string;
   setCommCat: (c: string) => void;
+  commSort: CommSort;
+  setCommSort: (s: CommSort) => void;
   posts: Post[];
   postLikes: Record<number, boolean>;
   togglePostLike: (id: number) => void;
   postDraft: string;
   setPostDraft: (v: string) => void;
   submitPost: () => void;
+
+  commentsOpen: Record<number, boolean>;
+  comments: Record<number, Comment[]>;
+  commentDrafts: Record<number, string>;
+  toggleComments: (postId: number) => void;
+  setCommentDraft: (postId: number, v: string) => void;
+  submitComment: (postId: number) => void;
+
+  viewingProfile: ProfileTarget | null;
+  goToProfile: (target: ProfileTarget) => void;
+  backFromProfile: () => void;
+
+  verification: VerificationInfo;
+  latestVerification: VerificationSubmission | null;
+  submitVerification: (fields: DivorceVerificationFields, file: File) => Promise<{ status?: 'approved' | 'more_info_needed' | 'rejected'; message?: string; error?: string }>;
+  appealChat: (verificationId: string, messages: AppealChatMessage[]) => Promise<{ reply?: string; escalated?: boolean; error?: string }>;
 
   prof: (id: number) => Profile | undefined;
 }
@@ -165,7 +216,9 @@ export default function HaplyApp() {
   const [authName, setAuthName] = useState('');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authTermsChecked, setAuthTermsChecked] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [legalSection, setLegalSection] = useState<'terms' | 'privacy' | null>(null);
 
   const [gsIntent, setGsIntent] = useState<Intent>('');
   const [gsGender, setGsGender] = useState('');
@@ -229,9 +282,17 @@ export default function HaplyApp() {
   const toastT = useRef<ReturnType<typeof setTimeout>>();
 
   const [commCat, setCommCat] = useState('All Topics');
+  const [commSort, setCommSort] = useState<CommSort>('top');
   const [postDraft, setPostDraft] = useState('');
   const [posts, setPosts] = useState<Post[]>(POSTS);
   const [postLikes, setPostLikes] = useState<Record<number, boolean>>({});
+  const [commentsOpen, setCommentsOpen] = useState<Record<number, boolean>>({});
+  const [comments, setComments] = useState<Record<number, Comment[]>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [viewingProfile, setViewingProfile] = useState<ProfileTarget | null>(null);
+  const [verification, setVerification] = useState<VerificationInfo>({ divorceVerified: false, divorceStatus: null, divorceVerifiedAt: null });
+  const [latestVerification, setLatestVerification] = useState<VerificationSubmission | null>(null);
+  const [profileReturnPage, setProfileReturnPage] = useState<Page>('community');
 
   useEffect(() => () => clearTimeout(toastT.current), []);
 
@@ -375,13 +436,17 @@ export default function HaplyApp() {
     if (loaded) {
       setUserProfile((prev) => (profileReady(loaded.profile) || loaded.profile.intro ? loaded.profile : prev));
       setDatingOn(loaded.datingOn);
+      setVerification(loaded.verification);
       setDashTab('community');
     } else {
       const intent = opts.intent ?? gsIntent;
       setDatingOn(intent !== 'community');
+      setVerification({ divorceVerified: false, divorceStatus: null, divorceVerifiedAt: null });
       setDashTab(intent === 'dating' ? 'discover' : 'community');
       void saveProfile(u.id, u.name, userProfile, intent !== 'community', intent || undefined, gsPostal || undefined);
+      if (opts.isNew) void acceptTerms(u.id, TERMS_VERSION);
     }
+    void fetchLatestVerification(u.id).then(setLatestVerification);
     nav('dashboard');
     if (opts.toast) showToast(opts.toast);
     void refreshPosts(u.id);
@@ -415,6 +480,10 @@ export default function HaplyApp() {
   const authSubmit = async () => {
     if (!authEmail.trim() || !authPassword.trim() || (authType === 'signup' && !authName.trim())) {
       setAuthError('Please fill in all fields to continue.');
+      return;
+    }
+    if (authType === 'signup' && !authTermsChecked) {
+      setAuthError('Please agree to the Terms of Service and Privacy Policy to continue.');
       return;
     }
     emailFlowActive.current = true;
@@ -539,14 +608,24 @@ export default function HaplyApp() {
     setAuthEmail,
     authPassword,
     setAuthPassword,
+    authTermsChecked,
+    setAuthTermsChecked,
     authError,
     authSubmit,
     socialAuth: (provider) => {
+      if (authType === 'signup' && !authTermsChecked) {
+        setAuthError('Please agree to the Terms of Service and Privacy Policy to continue.');
+        return;
+      }
       void signInProvider(provider.toLowerCase() as 'google' | 'facebook' | 'apple').then(({ error }) => {
         if (error) showToast(`${provider} sign-in isn't enabled yet — email works right now.`);
       });
     },
     closeAuth: () => setAuthOpen(false),
+
+    legalSection,
+    openLegal: (section) => setLegalSection(section),
+    closeLegal: () => setLegalSection(null),
 
     dashTab,
     setDashTab,
@@ -616,12 +695,18 @@ export default function HaplyApp() {
 
     commCat,
     setCommCat,
+    commSort,
+    setCommSort,
     posts,
     postLikes,
     togglePostLike: (id) => {
+      if (!user?.id) {
+        showToast('Join free to upvote');
+        return;
+      }
       const nowLiked = !postLikes[id];
       setPostLikes((pl) => ({ ...pl, [id]: nowLiked }));
-      if (user?.id) void setPostLike(id, user.id, nowLiked);
+      void setPostLike(id, user.id, nowLiked);
     },
     postDraft,
     setPostDraft,
@@ -654,6 +739,62 @@ export default function HaplyApp() {
       }
     },
 
+    commentsOpen,
+    comments,
+    commentDrafts,
+    toggleComments: (postId) => {
+      setCommentsOpen((co) => ({ ...co, [postId]: !co[postId] }));
+      if (!comments[postId]) {
+        void fetchComments(postId).then((cs) => {
+          if (cs) setComments((c) => ({ ...c, [postId]: cs }));
+        });
+      }
+    },
+    setCommentDraft: (postId, v) => setCommentDrafts((d) => ({ ...d, [postId]: v })),
+    submitComment: (postId) => {
+      const text = (commentDrafts[postId] || '').trim();
+      if (!text || !user?.id) return;
+      if (violatesLanguagePolicy(text)) {
+        showToast('Our safety bot flagged that wording — Haply runs on kindness. Please rephrase 💛');
+        return;
+      }
+      setCommentDrafts((d) => ({ ...d, [postId]: '' }));
+      void createComment(postId, user.id, user.name, text).then((c) => {
+        if (c) {
+          setComments((cs) => ({ ...cs, [postId]: [...(cs[postId] || []), c] }));
+          setPosts((ps) => ps.map((p) => (p.id === postId ? { ...p, comments: p.comments + 1 } : p)));
+        } else {
+          showToast("Couldn't post your reply right now — please try again.");
+        }
+      });
+    },
+
+    viewingProfile,
+    goToProfile: (target) => {
+      setProfileReturnPage(page);
+      setViewingProfile(target);
+      nav('community-profile');
+    },
+    backFromProfile: () => nav(profileReturnPage),
+
+    verification,
+    latestVerification,
+    submitVerification: async (fields, file) => {
+      if (!user?.id) return { error: 'not_signed_in' };
+      const result = await submitDivorceVerification(user.id, fields, file);
+      if (result.status) {
+        void fetchLatestVerification(user.id).then(setLatestVerification);
+        if (result.status === 'approved') {
+          setVerification({ divorceVerified: true, divorceStatus: fields.statusClaimed, divorceVerifiedAt: new Date().toISOString() });
+          showToast("You're verified — your badge is now visible to other members 💛");
+        } else {
+          setVerification((v) => ({ ...v, divorceVerified: false }));
+        }
+      }
+      return result;
+    },
+    appealChat: (verificationId, messages) => appealChat(verificationId, messages),
+
     prof
   };
 
@@ -663,7 +804,9 @@ export default function HaplyApp() {
       {page === 'get-started' && <GetStarted h={h} />}
       {page === 'community' && <CommunityPublic h={h} />}
       {page === 'dashboard' && <Dashboard h={h} />}
+      {page === 'community-profile' && <CommunityProfilePage h={h} />}
       {authOpen && <AuthModal h={h} />}
+      {legalSection && <LegalModal h={h} />}
       {chatId !== null && <ChatDialog h={h} />}
       {detailId !== null && <DetailModal h={h} />}
       {matchPopId !== null && <MatchPop h={h} />}

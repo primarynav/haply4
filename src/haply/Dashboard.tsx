@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENTS, PROFILES, type Profile } from './data';
 import type { DashTab, H } from './HaplyApp';
-import { CatPills, Composer, PostCard, filteredPosts } from './CommunityPublic';
+import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './CommunityPublic';
+import { DivorceVerification } from './DivorceVerification';
+import { generatedAvatarDataUri } from './avatars';
 import { Ic, Logo, serif } from './ui';
 import type { Intro, UserProfile } from './matchmaker';
 import { detectByIp, detectPrecise, detectQuietly, type DetectedLocation } from './geolocate';
@@ -90,13 +92,16 @@ function CommunityTab({ h }: { h: H }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }} data-rs="1">
       <div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-          <CatPills h={h} small />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <CatPills h={h} small />
+          </div>
+          <SortToggle h={h} />
         </div>
         <Composer h={h} dash />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {filteredPosts(h).map((po, i) => (
-            <PostCard key={po.id} post={po} index={i} h={h} />
+          {filteredPosts(h).map((po) => (
+            <PostCard key={po.id} post={po} h={h} />
           ))}
         </div>
       </div>
@@ -936,14 +941,20 @@ function ProfileTab({ h }: { h: H }) {
       </div>
       <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <div style={{ width: 92, height: 92, borderRadius: '50%', background: '#FFE4E6', color: '#be123c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700 }}>{h.userInitial}</div>
+          <img src={generatedAvatarDataUri(h.user?.id || h.userName, h.userInitial)} alt="" style={{ width: 92, height: 92, borderRadius: '50%', flexShrink: 0 }} />
           <div>
             <h3 style={{ fontSize: 24, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
               {h.userName}{' '}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
-                <Ic name="verified" fill size={13} />
-                Verified member
-              </span>
+              {h.verification.divorceVerified ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
+                  <Ic name="verified" fill size={13} />
+                  {h.verification.divorceStatus === 'legally_separated' ? 'Verified separated' : 'Verified divorced'}
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F5F5F4', border: '1px solid #E7E5E4', color: '#78716C', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
+                  Not verified
+                </span>
+              )}
             </h3>
             <p style={{ color: '#78716C', margin: '4px 0 10px', fontSize: 14 }}>{h.userEmail} · Seattle group</p>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -958,6 +969,7 @@ function ProfileTab({ h }: { h: H }) {
             </div>
           </div>
         </div>
+        <DivorceVerification h={h} />
         <div>
           <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>My intro</h4>
           <p style={{ color: '#44403C', margin: 0, fontSize: 15, lineHeight: 1.65, maxWidth: 640 }}>

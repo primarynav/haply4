@@ -56,6 +56,17 @@ export async function signOutBackend(): Promise<void> {
   }
 }
 
+/** Current version of the site-wide Terms of Service / Privacy Policy a member agrees to at signup. */
+export const TERMS_VERSION = '2026-07-v1';
+
+export async function acceptTerms(uid: string, version: string = TERMS_VERSION): Promise<void> {
+  try {
+    await supabase.from('profiles').upsert({ id: uid, terms_accepted_at: new Date().toISOString(), terms_version: version });
+  } catch {
+    /* best-effort; the checkbox itself already gated account creation client-side */
+  }
+}
+
 interface ProfileRow {
   id: string;
   name: string;
@@ -71,9 +82,20 @@ interface ProfileRow {
   intro: string | null;
   custom_intro: boolean | null;
   dating_on: boolean | null;
+  divorce_verified: boolean | null;
+  divorce_status: string | null;
+  divorce_verified_at: string | null;
 }
 
-export async function loadProfile(uid: string): Promise<{ profile: UserProfile; datingOn: boolean } | null> {
+export type ClaimedStatus = 'divorced' | 'legally_separated';
+
+export interface VerificationInfo {
+  divorceVerified: boolean;
+  divorceStatus: ClaimedStatus | null;
+  divorceVerifiedAt: string | null;
+}
+
+export async function loadProfile(uid: string): Promise<{ profile: UserProfile; datingOn: boolean; verification: VerificationInfo } | null> {
   try {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle<ProfileRow>();
     if (error || !data) return null;
@@ -92,7 +114,12 @@ export async function loadProfile(uid: string): Promise<{ profile: UserProfile; 
         intro: data.intro ?? undefined,
         customIntro: data.custom_intro ?? undefined
       },
-      datingOn: data.dating_on ?? true
+      datingOn: data.dating_on ?? true,
+      verification: {
+        divorceVerified: data.divorce_verified ?? false,
+        divorceStatus: (data.divorce_status as ClaimedStatus) ?? null,
+        divorceVerifiedAt: data.divorce_verified_at ?? null
+      }
     };
   } catch {
     return null;
@@ -135,6 +162,7 @@ function timeAgo(iso: string): string {
 
 interface PostRow {
   id: number;
+  user_id: string | null;
   author_name: string;
   cat: string;
   title: string;
@@ -149,7 +177,7 @@ export async function fetchPosts(uid?: string): Promise<{ posts: Post[]; myLikes
   try {
     const { data, error } = await supabase
       .from('posts')
-      .select('id, author_name, cat, title, body, pinned, created_at, post_likes(count), comments(count)')
+      .select('id, user_id, author_name, cat, title, body, pinned, created_at, post_likes(count), comments(count)')
       .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(50);
@@ -162,6 +190,7 @@ export async function fetchPosts(uid?: string): Promise<{ posts: Post[]; myLikes
     const posts: Post[] = (data as unknown as PostRow[]).map((r) => ({
       id: r.id,
       name: r.author_name,
+      userId: r.user_id ?? undefined,
       cat: r.cat,
       time: r.pinned ? 'Pinned' : timeAgo(r.created_at),
       title: r.title,
@@ -184,7 +213,7 @@ export async function createPost(uid: string, authorName: string, cat: string, t
       .select('id, author_name, cat, title, body, created_at')
       .single();
     if (error || !data) return null;
-    return { id: data.id, name: data.author_name, cat: data.cat, time: 'Just now', title: data.title, body: data.body, likes: 0, comments: 0 };
+    return { id: data.id, name: data.author_name, userId: uid, cat: data.cat, time: 'Just now', title: data.title, body: data.body, likes: 0, comments: 0 };
   } catch {
     return null;
   }
@@ -196,5 +225,180 @@ export async function setPostLike(postId: number, uid: string, liked: boolean): 
     else await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', uid);
   } catch {
     /* optimistic UI already applied */
+  }
+}
+
+export interface Comment {
+  id: number;
+  postId: number;
+  name: string;
+  userId: string;
+  body: string;
+  time: string;
+}
+
+interface CommentRow {
+  id: number;
+  post_id: number;
+  author_name: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+}
+
+export async function fetchComments(postId: number): Promise<Comment[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .select('id, post_id, author_name, user_id, body, created_at')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+    if (error || !data) return null;
+    return (data as CommentRow[]).map((r) => ({ id: r.id, postId: r.post_id, name: r.author_name, userId: r.user_id, body: r.body, time: timeAgo(r.created_at) }));
+  } catch {
+    return null;
+  }
+}
+
+export async function createComment(postId: number, uid: string, authorName: string, body: string): Promise<Comment | null> {
+  try {
+    const { data, error } = await supabase
+      .from('comments')
+      .insert({ post_id: postId, user_id: uid, author_name: authorName, body })
+      .select('id, post_id, author_name, user_id, body, created_at')
+      .single();
+    if (error || !data) return null;
+    return { id: data.id, postId: data.post_id, name: data.author_name, userId: data.user_id, body: data.body, time: 'Just now' };
+  } catch {
+    return null;
+  }
+}
+
+export interface PublicProfile {
+  name: string;
+  age?: number;
+  city?: string;
+  kids?: string;
+  intro?: string;
+  interests: string[];
+  divorceVerified: boolean;
+  divorceStatus: ClaimedStatus | null;
+}
+
+/**
+ * Read-only card shown when tapping another real member's name in the community.
+ * Goes through the `get_community_profile` RPC rather than querying `profiles`
+ * directly — profiles are only readable row-by-row for yourself or a mutual
+ * verified dating match, so a plain select here would silently return nothing
+ * for most members. The RPC is a SECURITY DEFINER function scoped to return
+ * only these safe columns, never full rows (see migration
+ * tighten_profile_read_policy) — including the verification badge, since
+ * showing that badge to other members is the entire point of the feature.
+ */
+export async function fetchPublicProfile(uid: string): Promise<PublicProfile | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_community_profile', { member_id: uid });
+    const row = data?.[0];
+    if (error || !row) return null;
+    return {
+      name: row.name,
+      age: row.age ?? undefined,
+      city: row.city ?? undefined,
+      kids: row.kids ?? undefined,
+      intro: row.intro ?? undefined,
+      interests: row.interests ?? [],
+      divorceVerified: row.divorce_verified ?? false,
+      divorceStatus: (row.divorce_status as ClaimedStatus) ?? null
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Current version of the divorce-verification-specific consent (AI processing + public badge display) shown before upload. */
+export const VERIFICATION_CONSENT_VERSION = '2026-07-v1';
+
+export interface VerificationSubmission {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'more_info_needed';
+  statusClaimed: ClaimedStatus;
+  reviewerNote: string | null;
+  createdAt: string;
+}
+
+/** The member's most recent verification attempt, if any — drives what the onboarding card shows. */
+export async function fetchLatestVerification(uid: string): Promise<VerificationSubmission | null> {
+  try {
+    const { data, error } = await supabase
+      .from('divorce_verifications')
+      .select('id, status, status_claimed, reviewer_note, created_at')
+      .eq('profile_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return { id: data.id, status: data.status, statusClaimed: data.status_claimed, reviewerNote: data.reviewer_note, createdAt: data.created_at };
+  } catch {
+    return null;
+  }
+}
+
+export interface DivorceVerificationFields {
+  statusClaimed: ClaimedStatus;
+  legalNameAtDivorce: string;
+  currentLegalName?: string;
+  dob: string;
+  state: string;
+  county: string;
+  finalizationDateApprox: string;
+}
+
+/**
+ * Uploads the decree to the private verification-docs bucket (member can write
+ * their own folder, not read it back — only the edge function's service role
+ * can), then invokes verify-divorce, which downloads it, runs the Claude
+ * vision check, and writes the decision itself. See supabase/functions/
+ * verify-divorce and src/DIVORCE_VERIFICATION_AGENT_PROMPT.md.
+ */
+export async function submitDivorceVerification(uid: string, fields: DivorceVerificationFields, file: File): Promise<{ status?: 'approved' | 'more_info_needed' | 'rejected'; message?: string; error?: string }> {
+  try {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${uid}/${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage.from('verification-docs').upload(path, file, { upsert: false });
+    if (uploadError) return { error: uploadError.message };
+
+    const { data, error } = await supabase.functions.invoke('verify-divorce', {
+      body: { ...fields, documentPath: path, consentVersion: VERIFICATION_CONSENT_VERSION }
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+    if (!data?.result) return { error: 'no_result' };
+    return { status: data.result.status, message: data.result.memberMessage || data.result.reasoning || '' };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'unknown' };
+  }
+}
+
+export interface AppealChatMessage {
+  from: 'me' | 'agent';
+  text: string;
+}
+
+/**
+ * Support chat for a member whose verification was rejected or needs more info —
+ * helps them fix and resubmit, or as a last resort tells them it's been escalated
+ * (logged on the verification row for a human to eventually see; there is no
+ * staffed review queue built yet, so this is a logged intent, not a live handoff).
+ */
+export async function appealChat(verificationId: string, messages: AppealChatMessage[]): Promise<{ reply?: string; escalated?: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('verification-appeal-chat', {
+      body: { verificationId, messages: messages.map((m) => ({ role: m.from, text: m.text })) }
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+    return { reply: data?.reply, escalated: data?.escalated };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'unknown' };
   }
 }

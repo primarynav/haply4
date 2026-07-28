@@ -1,4 +1,5 @@
 import type { H } from './HaplyApp';
+import { PRIVACY_POLICY, TERMS_OF_SERVICE } from './legalContent';
 import { Ic, Logo, serif } from './ui';
 
 const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#FAF7F4', border: '1.5px solid transparent', borderRadius: 12, padding: '12px 14px', fontSize: 15, outline: 'none' };
@@ -52,6 +53,39 @@ export function AuthModal({ h }: { h: H }) {
               style={inputStyle}
             />
           </div>
+          {isSignup && (
+            <button
+              onClick={() => h.setAuthTermsChecked(!h.authTermsChecked)}
+              style={{ display: 'flex', gap: 10, alignItems: 'flex-start', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+            >
+              <Ic name={h.authTermsChecked ? 'check_circle' : 'radio_button_unchecked'} fill={h.authTermsChecked} size={19} color={h.authTermsChecked ? '#16a34a' : '#A8A29E'} style={{ marginTop: 1, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: '#57534E', lineHeight: 1.5 }}>
+                I agree to the{' '}
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    h.openLegal('terms');
+                  }}
+                  className="hvc-rose"
+                  style={{ color: '#e11d48', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  Terms of Service
+                </span>{' '}
+                and{' '}
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    h.openLegal('privacy');
+                  }}
+                  className="hvc-rose"
+                  style={{ color: '#e11d48', fontWeight: 600, textDecoration: 'underline' }}
+                >
+                  Privacy Policy
+                </span>
+                .
+              </span>
+            </button>
+          )}
           {h.authError && <p style={{ fontSize: 14, color: '#dc2626', margin: 0 }}>{h.authError}</p>}
           <button onClick={h.authSubmit} className="hvb-rosedeep" style={{ width: '100%', background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: 13, fontSize: 16, fontWeight: 600, cursor: 'pointer', marginTop: 4 }}>
             {isSignup ? 'Create account' : 'Log in'}
@@ -88,6 +122,41 @@ export function AuthModal({ h }: { h: H }) {
               {isSignup ? 'Log in' : 'Sign up free'}
             </button>
           </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Terms of Service / Privacy Policy content, layered above AuthModal (or anything else) rather than navigating away from it. */
+export function LegalModal({ h }: { h: H }) {
+  const section = h.legalSection;
+  if (!section) return null;
+  const sections = section === 'terms' ? TERMS_OF_SERVICE : PRIVACY_POLICY;
+  const title = section === 'terms' ? 'Terms of Service' : 'Privacy Policy';
+  return (
+    <div onClick={h.closeLegal} style={{ position: 'fixed', inset: 0, background: 'rgba(28,25,23,0.65)', zIndex: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 560, maxHeight: '85vh', overflowY: 'auto', padding: 32, position: 'relative', animation: 'popin .25s ease' }}>
+        <button onClick={h.closeLegal} className="hvc-ink" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#78716C', padding: 4, display: 'flex' }}>
+          <Ic name="close" size={22} />
+        </button>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button onClick={() => h.openLegal('terms')} style={{ border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: section === 'terms' ? '#211D1A' : '#F0E9E2', color: section === 'terms' ? '#fff' : '#44403C' }}>
+            Terms
+          </button>
+          <button onClick={() => h.openLegal('privacy')} style={{ border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: section === 'privacy' ? '#211D1A' : '#F0E9E2', color: section === 'privacy' ? '#fff' : '#44403C' }}>
+            Privacy
+          </button>
+        </div>
+        <h2 style={{ fontFamily: serif, fontSize: 24, fontWeight: 600, margin: '0 0 4px' }}>{title}</h2>
+        <p style={{ fontSize: 12, color: '#A8A29E', margin: '0 0 20px' }}>Haply · divorce and legal-separation community</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {sections.map((s) => (
+            <div key={s.heading}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>{s.heading}</h3>
+              <p style={{ fontSize: 14, color: '#44403C', lineHeight: 1.6, margin: 0 }}>{s.body}</p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
