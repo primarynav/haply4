@@ -34,9 +34,10 @@ export function CommunityProfilePage({ h }: { h: H }) {
                 {identity.name}
                 {identity.age ? `, ${identity.age}` : ''}
               </h2>
-              <p style={{ color: '#78716C', margin: '4px 0 0', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Ic name="verified" fill size={14} color="#16a34a" />
-                Haply member{identity.city ? ` · ${identity.city}` : ''}
+              <p style={{ color: identity.status === 'ready' && identity.divorceVerified ? '#78716C' : '#A8A29E', margin: '4px 0 0', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {identity.status === 'ready' && identity.divorceVerified && <Ic name="verified" fill size={14} color="#16a34a" />}
+                {identity.status === 'ready' ? (identity.divorceVerified ? 'Verified' : 'Not verified') : 'Haply member'}
+                {identity.city ? ` · ${identity.city}` : ''}
               </p>
             </div>
           </div>

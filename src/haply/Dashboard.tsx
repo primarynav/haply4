@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENTS, PROFILES, type Profile } from './data';
 import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './CommunityPublic';
+import { DivorceVerification } from './DivorceVerification';
 import { generatedAvatarDataUri } from './avatars';
 import { Ic, Logo, serif } from './ui';
 import type { Intro, UserProfile } from './matchmaker';
@@ -944,10 +945,16 @@ function ProfileTab({ h }: { h: H }) {
           <div>
             <h3 style={{ fontSize: 24, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
               {h.userName}{' '}
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
-                <Ic name="verified" fill size={13} />
-                Verified member
-              </span>
+              {h.verification.divorceVerified ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
+                  <Ic name="verified" fill size={13} />
+                  {h.verification.divorceStatus === 'legally_separated' ? 'Verified separated' : 'Verified divorced'}
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F5F5F4', border: '1px solid #E7E5E4', color: '#78716C', fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999 }}>
+                  Not verified
+                </span>
+              )}
             </h3>
             <p style={{ color: '#78716C', margin: '4px 0 10px', fontSize: 14 }}>{h.userEmail} · Seattle group</p>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -962,6 +969,7 @@ function ProfileTab({ h }: { h: H }) {
             </div>
           </div>
         </div>
+        <DivorceVerification h={h} />
         <div>
           <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>My intro</h4>
           <p style={{ color: '#44403C', margin: 0, fontSize: 15, lineHeight: 1.65, maxWidth: 640 }}>

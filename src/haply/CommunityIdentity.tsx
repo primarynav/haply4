@@ -27,6 +27,8 @@ export interface ResolvedIdentity {
   city?: string;
   intro?: string;
   interests: string[];
+  /** Demo/pool profiles are always shown verified (that's the whole pool's premise); real members reflect their actual divorce_verified status. */
+  divorceVerified: boolean;
 }
 
 /**
@@ -58,15 +60,16 @@ export function useResolvedIdentity(target: ProfileTarget | null, canFetch: bool
       age: target.profile.age,
       city: target.profile.location,
       intro: target.profile.bio,
-      interests: target.profile.interests
+      interests: target.profile.interests,
+      divorceVerified: true
     };
   }
   const avatarSrc = generatedAvatarDataUri(target.uid, target.name.charAt(0));
-  if (!canFetch) return { name: target.name, avatarSrc, status: 'gated', interests: [] };
-  if (!memberCache.has(target.uid)) return { name: target.name, avatarSrc, status: 'loading', interests: [] };
+  if (!canFetch) return { name: target.name, avatarSrc, status: 'gated', interests: [], divorceVerified: false };
+  if (!memberCache.has(target.uid)) return { name: target.name, avatarSrc, status: 'loading', interests: [], divorceVerified: false };
   const p = memberCache.get(target.uid);
-  if (!p) return { name: target.name, avatarSrc, status: 'empty', interests: [] };
-  return { name: target.name, avatarSrc, status: 'ready', age: p.age, city: p.city, intro: p.intro, interests: p.interests };
+  if (!p) return { name: target.name, avatarSrc, status: 'empty', interests: [], divorceVerified: false };
+  return { name: target.name, avatarSrc, status: 'ready', age: p.age, city: p.city, intro: p.intro, interests: p.interests, divorceVerified: p.divorceVerified };
 }
 
 /**
@@ -132,9 +135,10 @@ export function IdentityLink({ h, target, style, children }: { h: H; target: Pro
                 {identity.name}
                 {identity.age ? `, ${identity.age}` : ''}
               </div>
-              <div style={{ fontSize: 12, color: '#78716C', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Ic name="verified" fill size={12} color="#16a34a" />
-                Haply member{identity.city ? ` · ${identity.city}` : ''}
+              <div style={{ fontSize: 12, color: identity.status === 'ready' && identity.divorceVerified ? '#78716C' : '#A8A29E', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {identity.status === 'ready' && identity.divorceVerified && <Ic name="verified" fill size={12} color="#16a34a" />}
+                {identity.status === 'ready' ? (identity.divorceVerified ? 'Verified' : 'Not verified') : 'Haply member'}
+                {identity.city ? ` · ${identity.city}` : ''}
               </div>
             </div>
           </div>
