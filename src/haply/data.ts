@@ -1,5 +1,6 @@
 import { GENERATED_PROFILES } from './generatedProfiles';
 import { COMMUNITY_POSTS } from './communityPosts';
+import type { CustodySchedule, KidsAgeBand, WantsMoreKids } from './journey';
 
 export interface Profile {
   id: number;
@@ -21,6 +22,27 @@ export interface Profile {
   smoking?: string;
   drinking?: string;
   lookingFor?: string;
+  /**
+   * True only for sample profiles shipped with the app so Discover isn't empty
+   * before there is a member base. These are not real people and have never been
+   * through verification, so the UI must label them as examples and must never
+   * render a verification badge for them.
+   */
+  demo?: boolean;
+  /**
+   * Whether this member actually completed divorce verification. Only ever true
+   * for a real account whose submission was approved — never for demo profiles.
+   * Rendering a badge off anything other than this field fabricates a trust
+   * signal members are invited to rely on.
+   */
+  divorceVerified?: boolean;
+  /** Launch metro slug — see launchMarkets.ts. */
+  metro?: string;
+  /** Co-parenting facts, the compatibility axis this audience actually filters on. */
+  kidsAtHome?: boolean;
+  kidsAgeBands?: KidsAgeBand[];
+  custodySchedule?: CustodySchedule;
+  wantsMoreKids?: WantsMoreKids;
 }
 
 export interface Post {
@@ -98,7 +120,23 @@ const SEED_PROFILES: Profile[] = [
   { id: 6, name: 'James', gender: 'man', age: 41, location: 'Chicago, IL', lat: 41.88, lng: -87.63, image: 'https://images.unsplash.com/photo-1638016329956-1127c6e4c96f?w=1080&q=80&fit=crop', bio: 'Chef and single dad who believes the best meals are shared. Looking for someone to create new memories with.', divorceYear: 2020, interests: ['Cooking', 'Wine', 'Family Time'], smoking: 'No', drinking: 'Socially' }
 ];
 
-export const PROFILES: Profile[] = [...SEED_PROFILES, ...GENERATED_PROFILES];
+/**
+ * Sample profiles ship only when VITE_DEMO_PROFILES=1.
+ *
+ * They exist to demo the UI, not to pad a member base. Shown to real members
+ * they are worse than an empty app: people spot invented profiles quickly, and
+ * a community product that opens with 2,000 strangers who never reply has
+ * spent its credibility before anyone has posted. Launch metros start empty and
+ * fill with real people, and Discover says so plainly.
+ *
+ * Marked demo in one place rather than on 2,000 literals so a new batch cannot
+ * forget — the UI keys "Example profile" labelling and badge suppression off it.
+ */
+export const DEMO_PROFILES_ENABLED = import.meta.env.VITE_DEMO_PROFILES === '1';
+
+export const PROFILES: Profile[] = DEMO_PROFILES_ENABLED
+  ? [...SEED_PROFILES, ...GENERATED_PROFILES].map((p) => ({ ...p, demo: true, divorceVerified: false }))
+  : [];
 
 export const LIKES_BACK = [2, 5];
 

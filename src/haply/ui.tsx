@@ -15,8 +15,12 @@ export function usePrefersReducedMotion(): boolean {
 
 /** Material Symbols icon. `fill` renders the filled variant (.msf). */
 export function Ic({ name, fill, size, color, style }: { name: string; fill?: boolean; size: number; color?: string; style?: CSSProperties }) {
+  // Material Symbols renders via a ligature, so the glyph's name is real text in
+  // the DOM. Without aria-hidden it lands in the accessible name of whatever
+  // contains it — "Continue arrow_forward", "Send send" — which is what a screen
+  // reader announces.
   return (
-    <span className={fill ? 'msf' : 'mso'} style={{ fontSize: size, color, ...style }}>
+    <span className={fill ? 'msf' : 'mso'} aria-hidden="true" style={{ fontSize: size, color, ...style }}>
       {name}
     </span>
   );
@@ -33,3 +37,32 @@ export function Logo({ size, color }: { size: number; color: string }) {
 }
 
 export const serif = "'Source Serif 4',Georgia,serif";
+
+/**
+ * The one place a "Verified" badge is allowed to render for another member.
+ *
+ * A badge is an invitation to rely, so it must track a real approved
+ * verification and nothing else: never a hardcoded literal, never a demo
+ * profile, never "everyone in this list". Sample profiles get an unmistakable
+ * "Example profile" chip instead so nobody mistakes seeded data for a
+ * vetted member.
+ *
+ * `verified` should come from the profile's own divorceVerified field.
+ */
+export function TrustChip({ verified, demo, size = 13 }: { verified?: boolean; demo?: boolean; size?: number }) {
+  if (demo) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F5F5F4', color: '#57534E', border: '1px solid #E7E5E4', borderRadius: 999, padding: '3px 10px', fontSize: size, fontWeight: 600 }}>
+        <Ic name="info" size={size} />
+        Example profile
+      </span>
+    );
+  }
+  if (!verified) return null;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: 999, padding: '3px 10px', fontSize: size, fontWeight: 600 }}>
+      <Ic name="verified" fill size={size} />
+      Verified
+    </span>
+  );
+}

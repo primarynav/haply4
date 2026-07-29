@@ -1,6 +1,8 @@
 import { supabase } from './supabaseClient';
 import type { Post } from './data';
+import type { CoParenting, CustodySchedule, DivorceStage, KidsAgeBand, WantsMoreKids } from './journey';
 import { emptyProfile, type UserProfile } from './matchmaker';
+import { clearReferral, storedReferral } from './referral';
 
 export interface DbUser {
   id: string;
@@ -85,6 +87,12 @@ interface ProfileRow {
   divorce_verified: boolean | null;
   divorce_status: string | null;
   divorce_verified_at: string | null;
+  metro: string | null;
+  divorce_stage: string | null;
+  kids_at_home: boolean | null;
+  kids_age_bands: string[] | null;
+  custody_schedule: string | null;
+  wants_more_kids: string | null;
 }
 
 export type ClaimedStatus = 'divorced' | 'legally_separated';
@@ -95,7 +103,13 @@ export interface VerificationInfo {
   divorceVerifiedAt: string | null;
 }
 
-export async function loadProfile(uid: string): Promise<{ profile: UserProfile; datingOn: boolean; verification: VerificationInfo } | null> {
+export interface JourneyInfo {
+  metro: string | null;
+  stage: DivorceStage | null;
+  coParenting: CoParenting;
+}
+
+export async function loadProfile(uid: string): Promise<{ profile: UserProfile; datingOn: boolean; verification: VerificationInfo; journey: JourneyInfo } | null> {
   try {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle<ProfileRow>();
     if (error || !data) return null;
@@ -119,6 +133,16 @@ export async function loadProfile(uid: string): Promise<{ profile: UserProfile; 
         divorceVerified: data.divorce_verified ?? false,
         divorceStatus: (data.divorce_status as ClaimedStatus) ?? null,
         divorceVerifiedAt: data.divorce_verified_at ?? null
+      },
+      journey: {
+        metro: data.metro ?? null,
+        stage: (data.divorce_stage as DivorceStage) ?? null,
+        coParenting: {
+          kidsAtHome: data.kids_at_home ?? undefined,
+          kidsAgeBands: (data.kids_age_bands as KidsAgeBand[]) ?? undefined,
+          custodySchedule: (data.custody_schedule as CustodySchedule) ?? undefined,
+          wantsMoreKids: (data.wants_more_kids as WantsMoreKids) ?? undefined
+        }
       }
     };
   } catch {
@@ -126,7 +150,18 @@ export async function loadProfile(uid: string): Promise<{ profile: UserProfile; 
   }
 }
 
-export async function saveProfile(uid: string, name: string, p: UserProfile, datingOn: boolean, intent?: string, postal?: string): Promise<void> {
+export interface SaveProfileExtras {
+  intent?: string;
+  postal?: string;
+  metro?: string | null;
+  stage?: DivorceStage | null;
+  coParenting?: CoParenting;
+}
+
+export async function saveProfile(uid: string, name: string, p: UserProfile, datingOn: boolean, extras: SaveProfileExtras = {}): Promise<void> {
+  const { intent, postal, metro, stage, coParenting } = extras;
+  // First write after signup carries the partner code that brought them here.
+  const { code: referralCode, source: referralSource } = storedReferral();
   try {
     await supabase.from('profiles').upsert({
       id: uid,
@@ -145,10 +180,47 @@ export async function saveProfile(uid: string, name: string, p: UserProfile, dat
       dating_on: datingOn,
       ...(intent ? { intent } : {}),
       ...(postal ? { postal } : {}),
+      ...(metro !== undefined ? { metro } : {}),
+      ...(stage !== undefined ? { divorce_stage: stage } : {}),
+      ...(coParenting
+        ? {
+            kids_at_home: coParenting.kidsAtHome ?? null,
+            kids_age_bands: coParenting.kidsAgeBands ?? null,
+            custody_schedule: coParenting.custodySchedule ?? null,
+            wants_more_kids: coParenting.wantsMoreKids ?? null
+          }
+        : {}),
+      // Source is recorded even with no partner code — the switch landing page
+      // has a source but no code, and it still needs to be measurable.
+      ...(referralCode || referralSource ? { referral_code: referralCode, referral_source: referralSource } : {}),
       updated_at: new Date().toISOString()
     });
+    // Only drop the stored attribution once it is safely on the row, so a
+    // failed write doesn't silently lose a partner's credit.
+    if (referralCode || referralSource) clearReferral();
   } catch {
     /* saved locally regardless; retried on next change */
+  }
+}
+
+/**
+ * Someone outside a launch metro. We take an email and where they are, so the
+ * next market is chosen from demand rather than intuition.
+ */
+export async function joinWaitlist(email: string, postal: string, metroRequested?: string): Promise<{ ok?: boolean; error?: string }> {
+  const { code } = storedReferral();
+  try {
+    const { error } = await supabase.from('waitlist').insert({
+      email: email.trim().toLowerCase(),
+      postal: postal.trim() || null,
+      metro_requested: metroRequested ?? null,
+      referral_code: code
+    });
+    // Already on the list is a success from the member's point of view.
+    if (error && !/duplicate|unique/i.test(error.message)) return { error: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'unknown' };
   }
 }
 
@@ -316,13 +388,17 @@ export async function fetchPublicProfile(uid: string): Promise<PublicProfile | n
 }
 
 /** Current version of the divorce-verification-specific consent (AI processing + public badge display) shown before upload. */
-export const VERIFICATION_CONSENT_VERSION = '2026-07-v1';
+export const VERIFICATION_CONSENT_VERSION = '2026-07-v2';
 
 export interface VerificationSubmission {
   id: string;
   status: 'pending' | 'approved' | 'rejected' | 'more_info_needed';
   statusClaimed: ClaimedStatus;
+  /** Internal rationale. Kept for the support chat's context — not shown to the member. */
   reviewerNote: string | null;
+  /** The explanation written for the member. This is what the UI displays. */
+  memberMessage: string | null;
+  escalatedAt: string | null;
   createdAt: string;
 }
 
@@ -331,13 +407,21 @@ export async function fetchLatestVerification(uid: string): Promise<Verification
   try {
     const { data, error } = await supabase
       .from('divorce_verifications')
-      .select('id, status, status_claimed, reviewer_note, created_at')
+      .select('id, status, status_claimed, reviewer_note, member_message, escalated_at, created_at')
       .eq('profile_id', uid)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (error || !data) return null;
-    return { id: data.id, status: data.status, statusClaimed: data.status_claimed, reviewerNote: data.reviewer_note, createdAt: data.created_at };
+    return {
+      id: data.id,
+      status: data.status,
+      statusClaimed: data.status_claimed,
+      reviewerNote: data.reviewer_note,
+      memberMessage: data.member_message,
+      escalatedAt: data.escalated_at,
+      createdAt: data.created_at
+    };
   } catch {
     return null;
   }
@@ -385,10 +469,31 @@ export interface AppealChatMessage {
 }
 
 /**
+ * Records a member's request for a person to review an automated verification
+ * decision. Deliberately not routed through the chat model — the right to human
+ * review has to be exercisable directly, not granted at an AI's discretion.
+ *
+ * This marks escalated_at for someone to action. It is a logged request, not a
+ * live handoff, so no copy anywhere may promise a response time.
+ */
+export async function requestHumanReview(verificationId: string): Promise<{ escalated?: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('verification-appeal-chat', {
+      body: { verificationId, action: 'request_human_review' }
+    });
+    if (error) return { error: error.message };
+    if (data?.error) return { error: data.error };
+    return { escalated: !!data?.escalated };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'unknown' };
+  }
+}
+
+/**
  * Support chat for a member whose verification was rejected or needs more info —
- * helps them fix and resubmit, or as a last resort tells them it's been escalated
- * (logged on the verification row for a human to eventually see; there is no
- * staffed review queue built yet, so this is a logged intent, not a live handoff).
+ * helps them fix and resubmit. It may also record a human-review request; there
+ * is no staffed review queue, so that is a logged intent, not a live handoff,
+ * and neither this chat nor the UI may state a turnaround time.
  */
 export async function appealChat(verificationId: string, messages: AppealChatMessage[]): Promise<{ reply?: string; escalated?: boolean; error?: string }> {
   try {

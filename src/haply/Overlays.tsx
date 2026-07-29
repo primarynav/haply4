@@ -1,6 +1,6 @@
 import type { H } from './HaplyApp';
 import { PRIVACY_POLICY, TERMS_OF_SERVICE } from './legalContent';
-import { Ic, Logo, serif } from './ui';
+import { Ic, Logo, TrustChip, serif } from './ui';
 
 const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#FAF7F4', border: '1.5px solid transparent', borderRadius: 12, padding: '12px 14px', fontSize: 15, outline: 'none' };
 const labelStyle: React.CSSProperties = { fontSize: 14, fontWeight: 600, display: 'block', marginBottom: 6 };
@@ -176,9 +176,9 @@ export function ChatDialog({ h }: { h: H }) {
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
               {p.name}, {p.age}
             </h3>
-            <p style={{ fontSize: 12, color: '#78716C', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Ic name="verified" fill size={13} color="#16a34a" />
-              Verified divorced · {p.location}
+            <p style={{ fontSize: 12, color: '#78716C', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <TrustChip verified={p.divorceVerified} demo={p.demo} size={11} />
+              {p.location}
             </p>
           </div>
           <button onClick={h.closeChat} className="hvc-ink" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#78716C', padding: 4, display: 'flex' }}>
@@ -261,9 +261,17 @@ export function DetailModal({ h }: { h: H }) {
             <Ic name="location_on" size={16} />
             {p.location}
           </p>
-          <p style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#F0FDF4', color: '#166534', border: '1px solid #BBF7D0', borderRadius: 999, padding: '5px 12px', fontSize: 13, fontWeight: 600, margin: '12px 0 0' }}>
-            <Ic name="verified" fill size={14} />
-            Verified divorced · {p.divorceYear}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 0' }}>
+            <TrustChip verified={p.divorceVerified} demo={p.demo} size={13} />
+            <span style={{ color: '#78716C', fontSize: 13 }}>Divorced {p.divorceYear} (self-reported)</span>
+          </div>
+          {/* Stated where the badge is actually relied on, not only in the Terms:
+              a member deciding whether to meet someone should see the limits of
+              what "Verified" was ever checking. */}
+          <p style={{ fontSize: 12, color: '#A8A29E', margin: '8px 0 0', lineHeight: 1.5 }}>
+            {p.divorceVerified
+              ? 'Verified means a document was reviewed — not an identity or background check. Haply does not screen members for criminal history.'
+              : 'Haply does not screen members for criminal history. Meet in public and tell someone where you’re going.'}
           </p>
           <p style={{ color: '#44403C', fontSize: 15, lineHeight: 1.65, margin: '16px 0 0' }}>{p.bio}</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '14px 0 0' }}>

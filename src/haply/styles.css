@@ -141,6 +141,65 @@ textarea::placeholder {
   border-color: #e11d48 !important;
 }
 
+/* Primary dashboard navigation.
+   Equal columns rather than flex so tab width is independent of label length,
+   and the row spans the full content width at every size. */
+.dash-nav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  box-sizing: border-box;
+}
+.dash-tab {
+  /* Nothing may spill past the pill, at any width. */
+  overflow: hidden;
+}
+/* Lets the label shrink below its content width so the ellipsis in its inline
+   style actually engages — without this a flex item just overflows instead. */
+.dash-tab-label {
+  min-width: 0;
+  max-width: 100%;
+}
+.dash-tab:hover:not([data-on='1']) {
+  background: rgba(225, 27, 72, 0.08) !important;
+  color: #be123c !important;
+}
+.dash-tab:focus-visible {
+  outline: 2px solid #e11d48;
+  outline-offset: 2px;
+}
+
+/* Below this the five labels stop fitting beside their icons, so the tab
+   stacks instead of truncating to "Matchm…". */
+@media (max-width: 860px) {
+  .dash-tab {
+    flex-direction: column !important;
+    gap: 3px !important;
+    padding: 8px 4px !important;
+    font-size: 12px !important;
+  }
+}
+/* Phone: give the labels back the space the track's own padding was taking,
+   so the longest ("Matchmaker") still fits its cell instead of ellipsising. */
+@media (max-width: 480px) {
+  .dash-nav {
+    padding: 4px !important;
+    gap: 2px !important;
+  }
+  .dash-tab {
+    padding: 7px 1px !important;
+    font-size: 10px !important;
+    letter-spacing: -0.01em;
+  }
+}
+/* Smallest phones still in circulation (320pt). One more step down keeps
+   "Matchmaker" whole rather than ellipsised. */
+@media (max-width: 360px) {
+  .dash-tab {
+    font-size: 9px !important;
+    letter-spacing: -0.02em;
+  }
+}
+
 /* Responsive: breakpoint 920px per design spec */
 @media (max-width: 920px) {
   [data-rs='1'] {

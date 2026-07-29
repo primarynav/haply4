@@ -1,4 +1,5 @@
 import { PROFILES, type Profile } from './data';
+import type { CustodySchedule, WantsMoreKids } from './journey';
 
 /** Discover's search criteria, in the spirit of a classic dating-site filter panel. */
 export interface DiscoverFilters {
@@ -17,6 +18,15 @@ export interface DiscoverFilters {
   drinking: 'any' | 'never' | 'not-regularly';
   /** Minimum education tier; see EDU_TIERS. */
   education: 'any' | 'college' | 'grad';
+  /**
+   * Co-parenting. The questions this audience actually needs answered before a
+   * first date, and which no mainstream app asks: how much of the time are
+   * their kids with them, and does either of you want more children. Getting
+   * this wrong wastes months, so it belongs in the filter bar, not the third
+   * date.
+   */
+  custody: 'any' | CustodySchedule;
+  wantsMoreKids: 'any' | WantsMoreKids;
 }
 
 export const AGE_FLOOR = 21;
@@ -32,7 +42,9 @@ export const emptyFilters = (): DiscoverFilters => ({
   kids: 'any',
   smoking: 'any',
   drinking: 'any',
-  education: 'any'
+  education: 'any',
+  custody: 'any',
+  wantsMoreKids: 'any'
 });
 
 /** Interest labels present in the pool, most common first. */
@@ -96,6 +108,11 @@ export function applyFilters(f: DiscoverFilters, hidden: number[] = []): Scored[
     if (!passesDrinking(p, f.drinking)) continue;
     if (!passesEducation(p, f.education)) continue;
 
+    // Unset on their profile is never disqualifying — filtering on a field
+    // someone simply hasn't filled in would quietly hide most of the pool.
+    if (f.custody !== 'any' && p.custodySchedule !== undefined && p.custodySchedule !== f.custody) continue;
+    if (f.wantsMoreKids !== 'any' && p.wantsMoreKids !== undefined && p.wantsMoreKids !== f.wantsMoreKids) continue;
+
     if (f.interests.length) {
       const has = p.interests.some((i) => f.interests.some((w) => i.toLowerCase().includes(w.toLowerCase()) || w.toLowerCase().includes(i.toLowerCase())));
       if (!has) continue;
@@ -152,7 +169,9 @@ const RELAX_LABELS: Record<string, string> = {
   kids: 'the kids filter',
   smoking: 'the smoking filter',
   drinking: 'the drinking filter',
-  education: 'the education filter'
+  education: 'the education filter',
+  custody: 'the custody filter',
+  wantsMoreKids: 'the more-children filter'
 };
 
 /**
@@ -170,6 +189,8 @@ export function suggestRelax(f: DiscoverFilters, hidden: number[] = []): { label
   if (f.smoking !== d.smoking) variants.push(['smoking', { ...f, smoking: d.smoking }]);
   if (f.drinking !== d.drinking) variants.push(['drinking', { ...f, drinking: d.drinking }]);
   if (f.education !== d.education) variants.push(['education', { ...f, education: d.education }]);
+  if (f.custody !== d.custody) variants.push(['custody', { ...f, custody: d.custody }]);
+  if (f.wantsMoreKids !== d.wantsMoreKids) variants.push(['wantsMoreKids', { ...f, wantsMoreKids: d.wantsMoreKids }]);
 
   let best: { label: string; count: number } | null = null;
   for (const [key, variant] of variants) {
@@ -191,5 +212,7 @@ export function activeFilterCount(f: DiscoverFilters): number {
   if (f.smoking !== d.smoking) n++;
   if (f.drinking !== d.drinking) n++;
   if (f.education !== d.education) n++;
+  if (f.custody !== d.custody) n++;
+  if (f.wantsMoreKids !== d.wantsMoreKids) n++;
   return n;
 }

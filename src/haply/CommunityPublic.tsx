@@ -93,10 +93,11 @@ export function PostCard({ post, h }: { post: Post; h: H }) {
     <>
       <img src={av.src} alt={post.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: '#F0E9E2' }} />
       <div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#211D1A', display: 'flex', alignItems: 'center', gap: 5 }}>
-          {post.name}
-          <Ic name="verified" fill size={14} color="#16a34a" />
-        </div>
+        {/* No verification badge here: a post card has no authenticated identity
+            loaded, and seeded posts have no account at all. The hover card and
+            profile page show the real badge once identity resolves — showing a
+            check on every author would assert a verification nobody performed. */}
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#211D1A', display: 'flex', alignItems: 'center', gap: 5 }}>{post.name}</div>
         <div style={{ fontSize: 12, color: '#78716C' }}>{post.time}</div>
       </div>
     </>
