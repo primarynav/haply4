@@ -55,3 +55,19 @@ alter table public.waitlist enable row level security;
 -- Anyone may join; nobody may read the list back through the API.
 drop policy if exists waitlist_insert_any on public.waitlist;
 create policy waitlist_insert_any on public.waitlist for insert to anon, authenticated with check (true);
+
+-- The insert policy has to be open — anyone must be able to join a waitlist
+-- without an account — so the column constraints are what keep the table from
+-- filling with junk. Cheap, and it means the list stays usable as the signal
+-- for choosing the next metro.
+alter table public.waitlist drop constraint if exists waitlist_email_format;
+alter table public.waitlist add constraint waitlist_email_format
+  check (email ~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' and length(email) <= 254);
+
+alter table public.waitlist drop constraint if exists waitlist_postal_format;
+alter table public.waitlist add constraint waitlist_postal_format
+  check (postal is null or postal ~ '^[A-Za-z0-9 -]{3,10}$');
+
+alter table public.waitlist drop constraint if exists waitlist_referral_format;
+alter table public.waitlist add constraint waitlist_referral_format
+  check (referral_code is null or referral_code ~ '^[a-z0-9][a-z0-9-]{1,31}$');

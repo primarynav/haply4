@@ -5,25 +5,29 @@
 -- that promise true. Without it the statement is inaccurate, and every document
 -- ever uploaded is still sitting in the bucket.
 --
--- BEFORE APPLYING, set the two values below. The secret must match the
--- PURGE_SECRET env var set on the purge-verification-docs edge function:
+-- The shared secret lives in Vault and nowhere else -- not in this repo, and not
+-- as an env var on the edge function. The function checks the header it receives
+-- by calling public.verify_purge_secret(), so the value never leaves the
+-- database. Rotating it is one statement and needs no redeploy:
 --
---   select vault.create_secret('<random-string>', 'purge_secret');
---   supabase secrets set PURGE_SECRET='<same-random-string>'
---
--- Then replace <PROJECT_REF> with the project ref.
+--   select vault.update_secret(
+--            (select id from vault.secrets where name = 'purge_secret'),
+--            '<new-random-string>');
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
--- Daily at 03:17 UTC. Off-peak, and the exact minute keeps it from contending
+-- Daily at 03:17 UTC. Off-peak, and the odd minute keeps it from contending
 -- with everything else scheduled on the hour.
+select cron.unschedule('purge-verification-docs')
+where exists (select 1 from cron.job where jobname = 'purge-verification-docs');
+
 select cron.schedule(
   'purge-verification-docs',
   '17 3 * * *',
   $$
   select net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/purge-verification-docs',
+    url     := 'https://ignlircqmifvmxnmwjks.supabase.co/functions/v1/purge-verification-docs',
     headers := jsonb_build_object(
                  'Content-Type', 'application/json',
                  'x-purge-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'purge_secret')

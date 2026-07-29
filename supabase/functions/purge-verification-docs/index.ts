@@ -10,7 +10,15 @@ import { createClient } from 'npm:@supabase/supabase-js';
  * this bucket into a much worse problem: the records were not supposed to exist.
  *
  * Scheduled by supabase/migrations/*_schedule_verification_doc_purge.sql. Also
- * safe to invoke by hand. Not member-facing: requires PURGE_SECRET.
+ * safe to invoke by hand. Not member-facing.
+ *
+ * Authorisation: the caller presents a shared secret in x-purge-secret, which is
+ * checked against Vault through public.verify_purge_secret(). The secret is
+ * deliberately NOT an env var on this function — keeping it solely in Vault
+ * means it can be rotated with one SQL statement and no redeploy, and the value
+ * never exists in the repo or in the function's configuration. verify_jwt is off
+ * because the caller is pg_cron via pg_net, which holds no JWT; this check is
+ * the function's authentication.
  *
  * document_path is nulled in the same pass so the row still records that a
  * document was reviewed, without retaining a pointer to a deleted object.
@@ -20,15 +28,23 @@ const RETENTION_DAYS = 90;
 const BATCH = 500;
 
 Deno.serve(async (req: Request) => {
-  const secret = Deno.env.get('PURGE_SECRET');
-  if (!secret) return new Response(JSON.stringify({ error: 'not_configured' }), { status: 503 });
-  if (req.headers.get('x-purge-secret') !== secret) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
-
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceKey) return new Response(JSON.stringify({ error: 'not_configured' }), { status: 503 });
 
   const admin = createClient(supabaseUrl, serviceKey);
+
+  const presented = req.headers.get('x-purge-secret');
+  if (!presented) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
+
+  const { data: authorised, error: authErr } = await admin.rpc('verify_purge_secret', { candidate: presented });
+  if (authErr) {
+    // Fail closed: a verifier that cannot be reached is not permission to run.
+    console.error('purge-verification-docs auth check failed:', authErr.message);
+    return new Response(JSON.stringify({ error: 'auth_unavailable' }), { status: 503 });
+  }
+  if (authorised !== true) return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
+
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: rows, error } = await admin

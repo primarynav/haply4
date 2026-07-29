@@ -37,6 +37,10 @@ const SCHEMA = {
 // 24 hours" when no specialist exists is a false statement made to a consumer
 // at their most aggrieved moment; it is also the sentence that gets quoted back
 // in a complaint. Keep this prompt and the member-facing copy in sync.
+// Must match SUPPORT_EMAIL in src/haply/legalContent.ts — the Terms, the Privacy
+// Policy and this chat all name it as the route to a human, so a drift between
+// them would send some members to an address nobody reads. The env var is an
+// override for other environments; the default is the live address.
 const SUPPORT_EMAIL = Deno.env.get('SUPPORT_EMAIL') ?? 'support@happilyeverafteragain.com';
 
 const SYSTEM = `You are Haply's verification support assistant. You are an AI assistant, not a human, and you say so plainly if asked. You are talking with a member whose divorce-verification submission did not come back "approved". You are part of onboarding support, not a general assistant — stay entirely inside this task.
