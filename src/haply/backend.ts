@@ -1,6 +1,8 @@
 import { supabase } from './supabaseClient';
 import type { Post } from './data';
+import type { CoParenting, CustodySchedule, DivorceStage, KidsAgeBand, WantsMoreKids } from './journey';
 import { emptyProfile, type UserProfile } from './matchmaker';
+import { clearReferral, storedReferral } from './referral';
 
 export interface DbUser {
   id: string;
@@ -85,6 +87,12 @@ interface ProfileRow {
   divorce_verified: boolean | null;
   divorce_status: string | null;
   divorce_verified_at: string | null;
+  metro: string | null;
+  divorce_stage: string | null;
+  kids_at_home: boolean | null;
+  kids_age_bands: string[] | null;
+  custody_schedule: string | null;
+  wants_more_kids: string | null;
 }
 
 export type ClaimedStatus = 'divorced' | 'legally_separated';
@@ -95,7 +103,13 @@ export interface VerificationInfo {
   divorceVerifiedAt: string | null;
 }
 
-export async function loadProfile(uid: string): Promise<{ profile: UserProfile; datingOn: boolean; verification: VerificationInfo } | null> {
+export interface JourneyInfo {
+  metro: string | null;
+  stage: DivorceStage | null;
+  coParenting: CoParenting;
+}
+
+export async function loadProfile(uid: string): Promise<{ profile: UserProfile; datingOn: boolean; verification: VerificationInfo; journey: JourneyInfo } | null> {
   try {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle<ProfileRow>();
     if (error || !data) return null;
@@ -119,6 +133,16 @@ export async function loadProfile(uid: string): Promise<{ profile: UserProfile; 
         divorceVerified: data.divorce_verified ?? false,
         divorceStatus: (data.divorce_status as ClaimedStatus) ?? null,
         divorceVerifiedAt: data.divorce_verified_at ?? null
+      },
+      journey: {
+        metro: data.metro ?? null,
+        stage: (data.divorce_stage as DivorceStage) ?? null,
+        coParenting: {
+          kidsAtHome: data.kids_at_home ?? undefined,
+          kidsAgeBands: (data.kids_age_bands as KidsAgeBand[]) ?? undefined,
+          custodySchedule: (data.custody_schedule as CustodySchedule) ?? undefined,
+          wantsMoreKids: (data.wants_more_kids as WantsMoreKids) ?? undefined
+        }
       }
     };
   } catch {
@@ -126,7 +150,18 @@ export async function loadProfile(uid: string): Promise<{ profile: UserProfile; 
   }
 }
 
-export async function saveProfile(uid: string, name: string, p: UserProfile, datingOn: boolean, intent?: string, postal?: string): Promise<void> {
+export interface SaveProfileExtras {
+  intent?: string;
+  postal?: string;
+  metro?: string | null;
+  stage?: DivorceStage | null;
+  coParenting?: CoParenting;
+}
+
+export async function saveProfile(uid: string, name: string, p: UserProfile, datingOn: boolean, extras: SaveProfileExtras = {}): Promise<void> {
+  const { intent, postal, metro, stage, coParenting } = extras;
+  // First write after signup carries the partner code that brought them here.
+  const { code: referralCode, source: referralSource } = storedReferral();
   try {
     await supabase.from('profiles').upsert({
       id: uid,
@@ -145,10 +180,47 @@ export async function saveProfile(uid: string, name: string, p: UserProfile, dat
       dating_on: datingOn,
       ...(intent ? { intent } : {}),
       ...(postal ? { postal } : {}),
+      ...(metro !== undefined ? { metro } : {}),
+      ...(stage !== undefined ? { divorce_stage: stage } : {}),
+      ...(coParenting
+        ? {
+            kids_at_home: coParenting.kidsAtHome ?? null,
+            kids_age_bands: coParenting.kidsAgeBands ?? null,
+            custody_schedule: coParenting.custodySchedule ?? null,
+            wants_more_kids: coParenting.wantsMoreKids ?? null
+          }
+        : {}),
+      // Source is recorded even with no partner code — the switch landing page
+      // has a source but no code, and it still needs to be measurable.
+      ...(referralCode || referralSource ? { referral_code: referralCode, referral_source: referralSource } : {}),
       updated_at: new Date().toISOString()
     });
+    // Only drop the stored attribution once it is safely on the row, so a
+    // failed write doesn't silently lose a partner's credit.
+    if (referralCode || referralSource) clearReferral();
   } catch {
     /* saved locally regardless; retried on next change */
+  }
+}
+
+/**
+ * Someone outside a launch metro. We take an email and where they are, so the
+ * next market is chosen from demand rather than intuition.
+ */
+export async function joinWaitlist(email: string, postal: string, metroRequested?: string): Promise<{ ok?: boolean; error?: string }> {
+  const { code } = storedReferral();
+  try {
+    const { error } = await supabase.from('waitlist').insert({
+      email: email.trim().toLowerCase(),
+      postal: postal.trim() || null,
+      metro_requested: metroRequested ?? null,
+      referral_code: code
+    });
+    // Already on the list is a success from the member's point of view.
+    if (error && !/duplicate|unique/i.test(error.message)) return { error: error.message };
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'unknown' };
   }
 }
 

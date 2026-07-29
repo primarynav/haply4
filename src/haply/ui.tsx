@@ -15,8 +15,12 @@ export function usePrefersReducedMotion(): boolean {
 
 /** Material Symbols icon. `fill` renders the filled variant (.msf). */
 export function Ic({ name, fill, size, color, style }: { name: string; fill?: boolean; size: number; color?: string; style?: CSSProperties }) {
+  // Material Symbols renders via a ligature, so the glyph's name is real text in
+  // the DOM. Without aria-hidden it lands in the accessible name of whatever
+  // contains it — "Continue arrow_forward", "Send send" — which is what a screen
+  // reader announces.
   return (
-    <span className={fill ? 'msf' : 'mso'} style={{ fontSize: size, color, ...style }}>
+    <span className={fill ? 'msf' : 'mso'} aria-hidden="true" style={{ fontSize: size, color, ...style }}>
       {name}
     </span>
   );

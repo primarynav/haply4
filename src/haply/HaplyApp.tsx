@@ -11,6 +11,7 @@ import {
   fetchComments,
   fetchLatestVerification,
   fetchPosts,
+  joinWaitlist,
   loadProfile,
   onAuth,
   saveProfile,
@@ -25,19 +26,24 @@ import {
   type Comment,
   type DbUser,
   type DivorceVerificationFields,
+  type JourneyInfo,
   type VerificationInfo,
   type VerificationSubmission
 } from './backend';
+import { datingAvailableForStage, type CoParenting, type DivorceStage } from './journey';
+import { metroForPostal, type LaunchMetro } from './launchMarkets';
+import { captureReferral } from './referral';
 import { aiTurn } from './aiMatchmaker';
 import type { ProfileTarget } from './avatars';
 import { Landing } from './Landing';
 import { GetStarted } from './GetStarted';
+import { SwitchPage } from './SwitchPage';
 import { CommunityPublic } from './CommunityPublic';
 import { CommunityProfilePage } from './CommunityProfile';
 import { Dashboard } from './Dashboard';
 import { AuthModal, ChatDialog, DetailModal, LegalModal, MatchPop, Toast } from './Overlays';
 
-export type Page = 'home' | 'get-started' | 'community' | 'dashboard' | 'community-profile';
+export type Page = 'home' | 'get-started' | 'community' | 'dashboard' | 'community-profile' | 'switch';
 export type CommSort = 'top' | 'new';
 export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile';
 export type Intent = '' | 'community' | 'dating' | 'both';
@@ -72,6 +78,7 @@ export interface GsErr {
   looking?: boolean;
   postal?: boolean;
   confirm?: boolean;
+  stage?: boolean;
 }
 
 /** Everything the screens need: state + actions, mirroring the prototype's state machine. */
@@ -109,6 +116,23 @@ export interface H {
   toggleGsConfirm: () => void;
   gsErr: GsErr;
   gsContinue: () => void;
+  /** Where this member is in the divorce journey — decides whether dating is offered at all. */
+  gsStage: DivorceStage | '';
+  pickStage: (v: DivorceStage) => void;
+  /** Set once a postal code resolves outside every launch metro. */
+  gsOutOfArea: boolean;
+  gsWaitlistEmail: string;
+  setGsWaitlistEmail: (v: string) => void;
+  gsWaitlistDone: boolean;
+  gsWaitlistSubmit: () => void;
+  gsBackToPostal: () => void;
+
+  /** Metro, stage and co-parenting for the signed-in member. */
+  journey: JourneyInfo;
+  saveCoParenting: (c: CoParenting) => void;
+  setStage: (s: DivorceStage) => void;
+  /** Whether the dating half of the product is open to this member. */
+  datingAvailable: boolean;
 
   authOpen: boolean;
   authType: AuthType;
@@ -228,6 +252,12 @@ export default function HaplyApp() {
   const [gsPostal, setGsPostal] = useState('');
   const [gsConfirm, setGsConfirm] = useState(false);
   const [gsErr, setGsErr] = useState<GsErr>({});
+  const [gsStage, setGsStage] = useState<DivorceStage | ''>('');
+  const [gsOutOfArea, setGsOutOfArea] = useState(false);
+  const [gsWaitlistEmail, setGsWaitlistEmail] = useState('');
+  const [gsWaitlistDone, setGsWaitlistDone] = useState(false);
+  const [gsMetro, setGsMetro] = useState<LaunchMetro | null>(null);
+  const [journey, setJourney] = useState<JourneyInfo>({ metro: null, stage: null, coParenting: {} });
 
   const [liked, setLiked] = useState<number[]>([1, 3]);
   const [hidden, setHidden] = useState<number[]>([]);
@@ -271,10 +301,18 @@ export default function HaplyApp() {
       /* non-persistent environment */
     }
   }, [userProfile]);
+  // Read a partner's ?ref= code before anything can navigate it away — it has to
+  // survive the whole journey to signup, including the OAuth round trip.
+  useEffect(() => {
+    captureReferral();
+    // /switch has to be a real, linkable URL — it's the target of outreach and
+    // search listings, so it can't live behind an in-app click only.
+    if (/^\/switch\/?$/i.test(window.location.pathname)) setPage('switch');
+  }, []);
   // Signed-in members also get their matchmaker profile saved to their account.
   useEffect(() => {
     const u = userRef.current;
-    if (u?.id) void saveProfile(u.id, u.name, userProfile, datingOn);
+    if (u?.id) void saveProfile(u.id, u.name, userProfile, datingOn, {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, datingOn]);
 
@@ -439,13 +477,24 @@ export default function HaplyApp() {
       setUserProfile((prev) => (profileReady(loaded.profile) || loaded.profile.intro ? loaded.profile : prev));
       setDatingOn(loaded.datingOn);
       setVerification(loaded.verification);
+      setJourney(loaded.journey);
       setDashTab('community');
     } else {
       const intent = opts.intent ?? gsIntent;
-      setDatingOn(intent !== 'community');
+      const stage: DivorceStage | null = gsStage || null;
+      // Dating only opens for someone who said they're ready for it, whatever
+      // they picked as their intent — the stage answer is the honest one.
+      const wantsDating = intent !== 'community' && datingAvailableForStage(stage);
+      setDatingOn(wantsDating);
       setVerification({ divorceVerified: false, divorceStatus: null, divorceVerifiedAt: null });
-      setDashTab(intent === 'dating' ? 'discover' : 'community');
-      void saveProfile(u.id, u.name, userProfile, intent !== 'community', intent || undefined, gsPostal || undefined);
+      setJourney({ metro: gsMetro?.slug ?? null, stage, coParenting: {} });
+      setDashTab(wantsDating && intent === 'dating' ? 'discover' : 'community');
+      void saveProfile(u.id, u.name, userProfile, wantsDating, {
+        intent: intent || undefined,
+        postal: gsPostal || undefined,
+        metro: gsMetro?.slug ?? null,
+        stage
+      });
       if (opts.isNew) void acceptTerms(u.id, TERMS_VERSION);
     }
     void fetchLatestVerification(u.id).then(setLatestVerification);
@@ -582,20 +631,62 @@ export default function HaplyApp() {
     gsErr,
     gsContinue: () => {
       const showDating = gsIntent === 'dating' || gsIntent === 'both';
+      const metro = metroForPostal(gsPostal);
       const err: GsErr = {
         intent: !gsIntent,
+        stage: !gsStage,
         gender: showDating && !gsGender,
         looking: showDating && !gsLooking,
-        postal: !/^[A-Za-z0-9\s-]{3,10}$/.test(gsPostal),
+        postal: !metroForPostal(gsPostal) && !/^\d{5}(\d{4})?$/.test(gsPostal.replace(/\s|-/g, '')),
         confirm: !gsConfirm
       };
-      if (err.intent || err.gender || err.looking || err.postal || err.confirm) {
+      if (err.intent || err.stage || err.gender || err.looking || err.postal || err.confirm) {
         setGsErr(err);
         return;
       }
+      // Outside the launch metros we don't create an account we can't serve —
+      // an empty city is a worse first impression than an honest waitlist.
+      if (!metro) {
+        setGsOutOfArea(true);
+        return;
+      }
+      setGsMetro(metro);
       setAuthOpen(true);
       setAuthType('signup');
       setAuthError('');
+    },
+    gsStage,
+    pickStage: (v) => {
+      setGsStage(v);
+      setGsErr((e) => ({ ...e, stage: false }));
+    },
+    gsOutOfArea,
+    gsWaitlistEmail,
+    setGsWaitlistEmail,
+    gsWaitlistDone,
+    gsWaitlistSubmit: () => {
+      const email = gsWaitlistEmail.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return;
+      void joinWaitlist(email, gsPostal).then((r) => {
+        if (r.ok) setGsWaitlistDone(true);
+        else showToast("Couldn't save that just now — please try again.");
+      });
+    },
+    gsBackToPostal: () => {
+      setGsOutOfArea(false);
+      setGsWaitlistDone(false);
+    },
+
+    journey,
+    datingAvailable: datingAvailableForStage(journey.stage),
+    setStage: (s) => {
+      setJourney((j) => ({ ...j, stage: s }));
+      if (!datingAvailableForStage(s)) setDatingOn(false);
+      if (user?.id) void saveProfile(user.id, user.name, userProfile, datingAvailableForStage(s) && datingOn, { stage: s });
+    },
+    saveCoParenting: (c) => {
+      setJourney((j) => ({ ...j, coParenting: c }));
+      if (user?.id) void saveProfile(user.id, user.name, userProfile, datingOn, { coParenting: c });
     },
 
     authOpen,
@@ -804,6 +895,7 @@ export default function HaplyApp() {
   return (
     <>
       {page === 'home' && <Landing h={h} />}
+      {page === 'switch' && <SwitchPage h={h} />}
       {page === 'get-started' && <GetStarted h={h} />}
       {page === 'community' && <CommunityPublic h={h} />}
       {page === 'dashboard' && <Dashboard h={h} />}

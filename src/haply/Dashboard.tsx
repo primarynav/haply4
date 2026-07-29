@@ -4,6 +4,8 @@ import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './CommunityPublic';
 import { DivorceVerification } from './DivorceVerification';
 import { generatedAvatarDataUri } from './avatars';
+import { CUSTODY_OPTIONS, KIDS_AGE_BANDS, STAGES, WANTS_MORE_OPTIONS, stageMeta, type CoParenting } from './journey';
+import { metroBySlug } from './launchMarkets';
 import { Ic, Logo, TrustChip, serif } from './ui';
 import type { Intro, UserProfile } from './matchmaker';
 import { detectByIp, detectPrecise, detectQuietly, type DetectedLocation } from './geolocate';
@@ -11,6 +13,17 @@ import { AGE_FLOOR, AGE_CEIL, RADIUS_STEPS, activeFilterCount, applyFilters, emp
 
 
 export function Dashboard({ h }: { h: H }) {
+  const tabs: { tab: DashTab; icon: string; label: string; onClick: () => void }[] = [
+    { tab: 'community', icon: 'diversity_1', label: 'Community', onClick: () => h.setDashTab('community') },
+    ...(h.datingAvailable
+      ? ([
+          { tab: 'discover', icon: 'explore', label: 'Discover', onClick: h.tabDiscover },
+          { tab: 'ai-match', icon: 'forum', label: 'Matchmaker', onClick: h.tabAI },
+          { tab: 'matches', icon: 'favorite', label: 'Matches', onClick: () => h.setDashTab('matches') },
+          { tab: 'messages', icon: 'chat_bubble', label: 'Messages', onClick: () => h.setDashTab('messages') }
+        ] as const)
+      : [])
+  ];
   return (
     <div style={{ minHeight: '100vh', background: '#FAF7F4' }}>
       <header style={{ background: '#FAF7F4', borderBottom: '1px solid #EDE6DF', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -45,21 +58,29 @@ export function Dashboard({ h }: { h: H }) {
         </div>
       </header>
       <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px clamp(16px,4vw,32px)' }}>
-        {/* Even 5-up grid rather than flex, so every tab is exactly the same
-            width regardless of label length ("Matchmaker" vs "Matches"). */}
-        <nav className="dash-nav" role="tablist" aria-label="Main" style={{ background: '#F0E9E2', borderRadius: 999, padding: 5, gap: 4, marginBottom: 24, width: '100%' }}>
-          <TabBtn h={h} tab="community" icon="diversity_1" label="Community" onClick={() => h.setDashTab('community')} />
-          <TabBtn h={h} tab="discover" icon="explore" label="Discover" onClick={h.tabDiscover} />
-          <TabBtn h={h} tab="ai-match" icon="forum" label="Matchmaker" onClick={h.tabAI} />
-          <TabBtn h={h} tab="matches" icon="favorite" label="Matches" onClick={() => h.setDashTab('matches')} />
-          <TabBtn h={h} tab="messages" icon="chat_bubble" label="Messages" onClick={() => h.setDashTab('messages')} />
+        {/* Even grid rather than flex, so every tab is exactly the same width
+            regardless of label length ("Matchmaker" vs "Matches"). The dating
+            tabs are absent — not disabled — for members who haven't said
+            they're ready; a greyed-out row of things you can't have is its own
+            kind of pressure. */}
+        <nav
+          className="dash-nav"
+          role="tablist"
+          aria-label="Main"
+          style={{ background: '#F0E9E2', borderRadius: 999, padding: 5, gap: 4, marginBottom: 24, width: '100%', gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}
+        >
+          {tabs.map((t) => (
+            <TabBtn key={t.tab} h={h} tab={t.tab} icon={t.icon} label={t.label} onClick={t.onClick} />
+          ))}
         </nav>
 
+        {/* Dating views stay unreachable unless the stage allows them, so
+            changing stage while sitting on Discover can't leave it rendered. */}
         {h.dashTab === 'community' && <CommunityTab h={h} />}
-        {h.dashTab === 'discover' && <DiscoverTab h={h} />}
-        {h.dashTab === 'ai-match' && <MatchmakerTab h={h} />}
-        {h.dashTab === 'matches' && <MatchesTab h={h} />}
-        {h.dashTab === 'messages' && <MessagesTab h={h} />}
+        {h.dashTab === 'discover' && (h.datingAvailable ? <DiscoverTab h={h} /> : <CommunityTab h={h} />)}
+        {h.dashTab === 'ai-match' && (h.datingAvailable ? <MatchmakerTab h={h} /> : <CommunityTab h={h} />)}
+        {h.dashTab === 'matches' && (h.datingAvailable ? <MatchesTab h={h} /> : <CommunityTab h={h} />)}
+        {h.dashTab === 'messages' && (h.datingAvailable ? <MessagesTab h={h} /> : <CommunityTab h={h} />)}
         {h.dashTab === 'profile' && <ProfileTab h={h} />}
       </div>
     </div>
@@ -394,6 +415,37 @@ function FilterBar({
         </div>
       </BarMenu>
 
+      {/* Its own menu, not folded into Lifestyle. For this audience these two
+          questions decide more first dates than every other filter combined,
+          and they're the ones no mainstream app asks. */}
+      <BarMenu label="Co-parenting" active={draft.custody !== d.custody || draft.wantsMoreKids !== d.wantsMoreKids}>
+        <div style={FIELD_LABEL}>Their kids are with them</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 14, maxWidth: 320 }}>
+          <button onClick={() => set({ custody: 'any' })} style={CHIP(draft.custody === 'any')}>
+            Any
+          </button>
+          {CUSTODY_OPTIONS.map((o) => (
+            <button key={o.value} onClick={() => set({ custody: o.value })} style={CHIP(draft.custody === o.value)}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <div style={FIELD_LABEL}>More children</div>
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', maxWidth: 320 }}>
+          <button onClick={() => set({ wantsMoreKids: 'any' })} style={CHIP(draft.wantsMoreKids === 'any')}>
+            Any
+          </button>
+          {WANTS_MORE_OPTIONS.map((o) => (
+            <button key={o.value} onClick={() => set({ wantsMoreKids: o.value })} style={CHIP(draft.wantsMoreKids === o.value)}>
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p style={{ fontSize: 12, color: '#A8A29E', margin: '12px 0 0', lineHeight: 1.45, maxWidth: 320 }}>
+          People who haven't answered these yet still show up — we won't hide someone just for leaving a field blank.
+        </p>
+      </BarMenu>
+
       <BarMenu label={draft.interests.length ? `Interests · ${draft.interests.length}` : 'Interests'} active={draft.interests.length > 0}>
         <div style={FIELD_LABEL}>Shares at least one</div>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', maxWidth: 300 }}>
@@ -620,7 +672,29 @@ function DiscoverTab({ h }: { h: H }) {
         {dirty && <span style={{ fontSize: 13, color: '#be123c', fontWeight: 600 }}>Filters changed — press Search to apply</span>}
       </div>
 
-      {results.length === 0 ? (
+      {PROFILES.length === 0 ? (
+        // Pre-launch in this metro. Say so plainly rather than dressing an
+        // empty city up as a filtering problem — and point at the thing that
+        // actually helps, which is more people arriving.
+        <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
+          <Ic name="groups" size={40} color="#D6CCC2" />
+          <p style={{ color: '#44403C', fontSize: 16, fontWeight: 600, margin: '12px 0 6px' }}>
+            {metroBySlug(h.journey.metro)?.short ?? 'Your city'} is just getting started
+          </p>
+          <p style={{ color: '#78716C', fontSize: 14, margin: '0 auto', lineHeight: 1.6, maxWidth: 420 }}>
+            You're one of the first members here, so there's nobody to show you yet. The community is the place to be in the meantime — and every person who
+            joins makes this page worth opening.
+          </p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 18, flexWrap: 'wrap' }}>
+            <button onClick={() => h.setDashTab('community')} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              Go to the community
+            </button>
+            <button onClick={h.invite} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#44403C', cursor: 'pointer' }}>
+              Invite someone
+            </button>
+          </div>
+        </div>
+      ) : results.length === 0 ? (
         <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
           <Ic name="search_off" size={40} color="#D6CCC2" />
           <p style={{ color: '#44403C', fontSize: 16, fontWeight: 600, margin: '12px 0 4px' }}>No one matches all of those filters</p>
@@ -948,6 +1022,112 @@ function MessagesTab({ h }: { h: H }) {
   );
 }
 
+const SUBCARD: React.CSSProperties = { background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18, padding: 24 };
+
+/**
+ * Stage is changeable at any time and in both directions. Someone who opened up
+ * to dating and found it was too soon needs to be able to step back without
+ * deleting their account — that is the whole point of treating divorce as a
+ * passage rather than a checkbox.
+ */
+function StageCard({ h }: { h: H }) {
+  const [open, setOpen] = useState(false);
+  const current = stageMeta(h.journey.stage);
+  return (
+    <div style={SUBCARD}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Ic name={current?.icon ?? 'schedule'} fill size={22} color="#e11d48" />
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{current?.label ?? 'Where you are'}</h3>
+            <p style={{ color: '#78716C', fontSize: 13, margin: '2px 0 0' }}>{current?.blurb ?? 'Tell us where you are and we’ll shape the app around it.'}</p>
+          </div>
+        </div>
+        <button onClick={() => setOpen((o) => !o)} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#44403C', cursor: 'pointer' }}>
+          {open ? 'Cancel' : 'Change'}
+        </button>
+      </div>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+          {STAGES.map((s) => {
+            const on = h.journey.stage === s.value;
+            return (
+              <button
+                key={s.value}
+                onClick={() => {
+                  h.setStage(s.value);
+                  setOpen(false);
+                }}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 12, textAlign: 'left', padding: '13px 15px', borderRadius: 12, cursor: 'pointer', fontSize: 14, background: on ? '#FFF1F2' : '#fff', border: on ? '2px solid #e11d48' : '2px solid #EDE6DF', color: on ? '#be123c' : '#44403C' }}
+              >
+                <Ic name={s.icon} fill size={19} style={{ marginTop: 1, flexShrink: 0 }} />
+                <span>
+                  <strong>{s.label}</strong>
+                  <span style={{ display: 'block', fontSize: 12.5, color: '#78716C', fontWeight: 400, marginTop: 2, lineHeight: 1.45 }}>{s.blurb}</span>
+                </span>
+              </button>
+            );
+          })}
+          <p style={{ fontSize: 12.5, color: '#A8A29E', margin: '4px 0 0', lineHeight: 1.5 }}>
+            Moving back to an earlier stage switches dating off and hides your profile from Discover. Nothing is deleted.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The co-parenting facts other members can filter on. Every field is optional. */
+function CoParentingCard({ h }: { h: H }) {
+  const c = h.journey.coParenting;
+  const update = (patch: Partial<CoParenting>) => h.saveCoParenting({ ...c, ...patch });
+  const hasKids = c.custodySchedule !== undefined && c.custodySchedule !== 'none';
+  return (
+    <div style={SUBCARD}>
+      <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>Co-parenting</h3>
+      <p style={{ color: '#78716C', fontSize: 13, margin: '0 0 16px', lineHeight: 1.5 }}>
+        The questions that actually decide whether two lives fit together. All optional — but answering means people who are looking for exactly your situation
+        can find you.
+      </p>
+      <div style={FIELD_LABEL}>My children are with me</div>
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
+        {CUSTODY_OPTIONS.map((o) => (
+          <button key={o.value} onClick={() => update({ custodySchedule: o.value, kidsAtHome: o.value !== 'none' })} style={CHIP(c.custodySchedule === o.value)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {hasKids && (
+        <>
+          <div style={FIELD_LABEL}>Their ages</div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
+            {KIDS_AGE_BANDS.map((b) => {
+              const on = (c.kidsAgeBands ?? []).includes(b.value);
+              return (
+                <button
+                  key={b.value}
+                  onClick={() => update({ kidsAgeBands: on ? (c.kidsAgeBands ?? []).filter((x) => x !== b.value) : [...(c.kidsAgeBands ?? []), b.value] })}
+                  style={CHIP(on)}
+                >
+                  {b.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+      <div style={FIELD_LABEL}>More children</div>
+      <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+        {WANTS_MORE_OPTIONS.map((o) => (
+          <button key={o.value} onClick={() => update({ wantsMoreKids: o.value })} style={CHIP(c.wantsMoreKids === o.value)}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProfileTab({ h }: { h: H }) {
   return (
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18 }}>
@@ -971,20 +1151,28 @@ function ProfileTab({ h }: { h: H }) {
                 </span>
               )}
             </h3>
-            <p style={{ color: '#78716C', margin: '4px 0 10px', fontSize: 14 }}>{h.userEmail} · Seattle group</p>
+            <p style={{ color: '#78716C', margin: '4px 0 10px', fontSize: 14 }}>
+              {h.userEmail}
+              {metroBySlug(h.journey.metro) ? ` · ${metroBySlug(h.journey.metro)!.short} group` : ''}
+            </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={h.settingsToast} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#211D1A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}>
                 <Ic name="settings" size={15} />
                 Edit profile
               </button>
-              <button onClick={h.toggleDating} style={{ border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, background: h.datingOn ? '#F0FDF4' : '#F0E9E2', color: h.datingOn ? '#166534' : '#44403C' }}>
-                <Ic name={h.datingOn ? 'toggle_on' : 'toggle_off'} size={16} />
-                {h.datingOn ? 'Dating: on' : 'Community-only'}
-              </button>
+              {/* Only offered once the stage says dating is on the table. */}
+              {h.datingAvailable && (
+                <button onClick={h.toggleDating} style={{ border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, background: h.datingOn ? '#F0FDF4' : '#F0E9E2', color: h.datingOn ? '#166534' : '#44403C' }}>
+                  <Ic name={h.datingOn ? 'toggle_on' : 'toggle_off'} size={16} />
+                  {h.datingOn ? 'Dating: on' : 'Community-only'}
+                </button>
+              )}
             </div>
           </div>
         </div>
+        <StageCard h={h} />
         <DivorceVerification h={h} />
+        {h.datingAvailable && <CoParentingCard h={h} />}
         <div>
           <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 8px' }}>My intro</h4>
           <p style={{ color: '#44403C', margin: 0, fontSize: 15, lineHeight: 1.65, maxWidth: 640 }}>

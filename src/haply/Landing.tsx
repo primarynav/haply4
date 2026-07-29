@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { EVENTS, GROUPS, HERO_SLIDES } from './data';
 import type { H } from './HaplyApp';
+import { metroListSentence } from './launchMarkets';
 import { Ic, Logo, serif, usePrefersReducedMotion } from './ui';
 
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,4vw,32px)' };
@@ -63,15 +64,20 @@ export function Landing({ h }: { h: H }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', padding: '7px 14px', borderRadius: 999, alignSelf: 'flex-start', fontSize: 13, fontWeight: 600 }}>
               <Ic name="verified" fill size={15} />
-              For divorced & separated people · 21+
+              Divorce verified · 21+ · {metroListSentence()}
             </div>
             <h1 style={{ fontFamily: serif, fontSize: 'clamp(38px,7vw,62px)', fontWeight: 600, lineHeight: 1.05, margin: 0, letterSpacing: '-0.01em' }}>
               Divorced.
               <br />
               Not done.
             </h1>
+            {/* Verification leads. It is the one concrete, checkable claim we can
+                make in a category where nobody believes anything — and the only
+                thing here a general dating app can't say. Wording stays inside
+                the limits set in the Terms: a reviewed document, nothing more. */}
             <p style={{ fontSize: 19, color: '#57534E', lineHeight: 1.65, margin: 0, maxWidth: 520 }}>
-              Haply is the dating community built for divorced people. Join free, talk it out with <strong style={{ color: '#211D1A' }}>people who get it</strong>, meet others in your city — and when you're ready, date someone who actually understands.
+              The dating community where members can <strong style={{ color: '#211D1A' }}>prove they're actually divorced</strong>. Upload your decree, get a
+              verified badge, and stop wondering. Join free for the community — date only when you're ready.
             </p>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <button onClick={h.goGetStarted} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '15px 32px', fontSize: 17, fontWeight: 600, cursor: 'pointer', boxShadow: '0 8px 24px rgba(225,29,72,0.25)' }}>
@@ -81,7 +87,9 @@ export function Landing({ h }: { h: H }) {
                 I'm ready to date
               </button>
             </div>
-            <p style={{ fontSize: 13, color: '#78716C', margin: 0 }}>Sign up with Google, Facebook, or Apple. Free — no credit card, ever.</p>
+            <p style={{ fontSize: 13, color: '#78716C', margin: 0, lineHeight: 1.6 }}>
+              Free — no credit card, ever. Verification is optional and free too; your document is never shown to anyone and is deleted after 90 days.
+            </p>
           </div>
           <HeroShowcase />
         </div>
@@ -92,10 +100,12 @@ export function Landing({ h }: { h: H }) {
         <div style={{ ...container, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 24, textAlign: 'center' }} data-rs-2="1">
           {(
             [
+              // Each of these has to be something the product actually does.
+              // "Human review" used to sit here and there is no human review.
+              ['Verified', 'members can prove their divorce'],
               ['Free', 'community membership, forever'],
-              ['Verified', 'sign in with Google, Facebook, or Apple'],
-              ['Moderated', 'AI safety bots + human review'],
-              ['Private', 'your story stays in the community']
+              ['No swiping', 'search and filters, not a card game'],
+              ['Private', 'your document is never shown to anyone']
             ] as const
           ).map(([num, label]) => (
             <div key={label}>
@@ -299,7 +309,7 @@ export function Landing({ h }: { h: H }) {
                 [
                   ['toggle_on', 'Community-only mode', 'Be here to heal and connect — invisible to daters until you choose otherwise.'],
                   ['forum', 'A matchmaker you can talk to', 'Tell our AI matchmaker what matters — kids, values, pace — and it introduces people who fit. No endless swiping.'],
-                  ['verified', 'Trust, front and center', "Real sign-ins, moderated spaces, and members who confirmed they're divorced or separated — just like you."]
+                  ['verified', 'Trust, front and center', 'Moderated spaces, and members who can verify their divorce against an actual document — not just tick a box.']
                 ] as const
               ).map(([icon, title, body]) => (
                 <div key={icon} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>

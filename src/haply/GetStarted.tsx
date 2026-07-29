@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { H } from './HaplyApp';
+import { STAGES } from './journey';
+import { metroListSentence } from './launchMarkets';
 import { Ic, serif } from './ui';
 
 const selOn = { background: '#FFF1F2', border: '2px solid #e11d48', color: '#be123c' };
@@ -11,8 +13,72 @@ function pickStyle(active: boolean): CSSProperties {
   return active ? selOn : selOff;
 }
 
+/**
+ * Shown when a ZIP falls outside every launch metro. We take an email instead of
+ * creating an account into an empty city — and the list is how the next metro
+ * gets chosen from real demand rather than a hunch.
+ */
+function OutOfArea({ h }: { h: H }) {
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(h.gsWaitlistEmail.trim());
+  return (
+    <div style={{ minHeight: '100vh', background: '#FAF7F4', display: 'flex', justifyContent: 'center', padding: '64px 16px' }}>
+      <div style={{ width: '100%', maxWidth: 460 }}>
+        <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 20, boxShadow: '0 20px 40px -20px rgba(33,29,26,0.15)', padding: 32 }}>
+          {h.gsWaitlistDone ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <Ic name="check_circle" fill size={26} color="#16a34a" />
+                <h1 style={{ fontFamily: serif, fontSize: 26, fontWeight: 600, margin: 0 }}>You're on the list</h1>
+              </div>
+              <p style={{ color: '#57534E', fontSize: 15, lineHeight: 1.6, margin: 0 }}>
+                We'll email you the moment Haply opens near you. We open a new city when enough people there are waiting — so you've just made yours more
+                likely.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 style={{ fontFamily: serif, fontSize: 26, fontWeight: 600, margin: '0 0 10px' }}>We're not in your city yet</h1>
+              <p style={{ color: '#57534E', fontSize: 15, lineHeight: 1.6, margin: '0 0 20px' }}>
+                Haply is open in {metroListSentence()}. We'd rather be genuinely useful in a few places than empty everywhere — a community with nobody in it
+                helps no one. Leave your email and we'll tell you when we reach you.
+              </p>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={h.gsWaitlistEmail}
+                onChange={(e) => h.setGsWaitlistEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && emailOk) h.gsWaitlistSubmit();
+                }}
+                className="fcb-rose"
+                style={{ width: '100%', boxSizing: 'border-box', background: '#FAF7F4', border: '1.5px solid transparent', borderRadius: 12, padding: '12px 14px', fontSize: 15, outline: 'none', marginBottom: 12 }}
+              />
+              <button
+                onClick={h.gsWaitlistSubmit}
+                disabled={!emailOk}
+                className="hvb-rosedeep"
+                style={{ width: '100%', background: emailOk ? '#e11d48' : '#FECDD3', color: '#fff', border: 'none', borderRadius: 999, padding: 14, fontSize: 16, fontWeight: 600, cursor: emailOk ? 'pointer' : 'default' }}
+              >
+                Tell me when you're here
+              </button>
+            </>
+          )}
+          <button onClick={h.gsBackToPostal} className="hvc-rose" style={{ background: 'none', border: 'none', color: '#78716C', fontSize: 14, cursor: 'pointer', padding: '16px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Ic name="arrow_back" size={17} />
+            Use a different ZIP code
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function GetStarted({ h }: { h: H }) {
-  const showDating = h.gsIntent === 'dating' || h.gsIntent === 'both';
+  // Dating questions only appear once someone has said they're actually open to
+  // it. Asking a person six weeks out of a separation who they'd like to date
+  // is the thing every other app gets wrong about this audience.
+  const showDating = (h.gsIntent === 'dating' || h.gsIntent === 'both') && h.gsStage === 'ready';
+  if (h.gsOutOfArea) return <OutOfArea h={h} />;
   return (
     <div style={{ minHeight: '100vh', background: '#FAF7F4' }}>
       <div style={{ borderBottom: '1px solid #EDE6DF', background: '#FAF7F4' }}>
@@ -59,6 +125,33 @@ export function GetStarted({ h }: { h: H }) {
               </div>
               {h.gsErr.intent && <p style={errText}>Choose what brings you here</p>}
             </div>
+            <div style={{ borderTop: '1px dashed #EDE6DF', paddingTop: 22 }}>
+              <label style={{ color: '#211D1A', marginBottom: 4, display: 'block', fontSize: 16, fontWeight: 600 }}>Where are you in all this?</label>
+              <p style={{ fontSize: 13, color: '#78716C', margin: '0 0 12px', lineHeight: 1.5 }}>
+                There's no right answer, and you can change it whenever. It just decides what we put in front of you.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {STAGES.map((s) => (
+                  <button
+                    key={s.value}
+                    onClick={() => h.pickStage(s.value)}
+                    style={{ width: '100%', padding: '14px 16px', borderRadius: 12, textAlign: 'left', cursor: 'pointer', fontSize: 15, transition: 'all .15s', ...pickStyle(h.gsStage === s.value), display: 'flex', alignItems: 'flex-start', gap: 12 }}
+                  >
+                    <Ic name={s.icon} fill size={20} style={{ marginTop: 1, flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>
+                      <strong>{s.label}</strong>
+                      <span style={{ display: 'block', fontSize: 12.5, color: '#78716C', fontWeight: 400, lineHeight: 1.45, marginTop: 2 }}>{s.blurb}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {h.gsErr.stage && <p style={errText}>Let us know where you're at</p>}
+              {h.gsStage && h.gsStage !== 'ready' && (
+                <p style={{ fontSize: 13, color: '#166534', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '10px 12px', margin: '12px 0 0', lineHeight: 1.5 }}>
+                  We'll keep dating switched off for now. The community is where most people start — turn dating on yourself whenever you're ready.
+                </p>
+              )}
+            </div>
             {showDating && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 22, borderTop: '1px dashed #EDE6DF', paddingTop: 22 }}>
                 <div>
@@ -103,8 +196,10 @@ export function GetStarted({ h }: { h: H }) {
                 className="fcb-rose"
                 style={{ width: '100%', boxSizing: 'border-box', background: '#FAF7F4', border: `1.5px solid ${h.gsErr.postal ? '#ef4444' : 'transparent'}`, borderRadius: 12, padding: '12px 14px', fontSize: 15, outline: 'none' }}
               />
-              {h.gsErr.postal && <p style={errText}>Please enter a valid postal code</p>}
-              <p style={{ fontSize: 13, color: '#78716C', margin: '6px 0 0' }}>We'll connect you with your city's group</p>
+              {h.gsErr.postal && <p style={errText}>Please enter a valid 5-digit ZIP code</p>}
+              <p style={{ fontSize: 13, color: '#78716C', margin: '6px 0 0', lineHeight: 1.5 }}>
+                We're building city by city — open now in {metroListSentence()}. Anywhere else, we'll add you to the list.
+              </p>
             </div>
             <button
               onClick={h.toggleGsConfirm}
