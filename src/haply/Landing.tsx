@@ -195,7 +195,10 @@ export function Landing({ h }: { h: H }) {
               {(
                 [
                   ['task_alt', 'Verified sign-in', 'Every member joins with a real Google, Facebook, or Apple account — no anonymous throwaways.'],
-                  ['shield_person', 'AI safety bots + human moderation', 'Automated monitoring flags unsafe or disrespectful language before it spreads, and real people review reports.'],
+                  // Says only what the product does today: an automated language
+                  // check runs on every post. There is no moderation team and no
+                  // report queue yet, so neither is claimed here.
+                  ['shield_person', 'Automated language screening', 'Every post is checked for unsafe or disrespectful language before it goes up, and members can leave any space at any time.'],
                   ['lock', 'Private by default', 'We never sell your data. What you share on Haply stays on Haply — and daters only see you if you opt in.']
                 ] as const
               ).map(([icon, title, body]) => (
@@ -340,7 +343,7 @@ export function Landing({ h }: { h: H }) {
               [
                 ['Who can join Haply?', 'Divorced or legally separated people aged 21 and over. Membership is free — sign up with Google, Facebook, or Apple in seconds.'],
                 ['Is Haply free?', 'Yes. Joining, posting, city groups, and meeting people are free. Optional premium features may come later, but community membership stays free.'],
-                ['How does Haply keep members safe?', 'Every member joins with a real Google, Facebook, or Apple account, and AI safety bots plus human moderators watch over every space for safe, respectful language.'],
+                ['How does Haply keep members safe?', 'Members sign in with a real Google, Facebook, Apple or email account, every post is automatically screened for unsafe or disrespectful language, and members can verify their divorce against a court document so you know who you are talking to. We are a small new team — we do not yet have round-the-clock human moderators, and we would rather tell you that than imply otherwise.'],
                 ['What about my privacy?', 'Trust and privacy come first. Your data is never sold, your posts stay inside the community, and daters only see you if you turn dating on.']
               ] as const
             ).map(([q, a]) => (
