@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './styles.css';
-import { CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
+import { CHAT_REPLIES, DEMO_PROFILES_ENABLED, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
 import { absorbMessage, buildIntros, countMatches, describeFilters, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
 import {
   acceptTerms,
@@ -9,6 +9,7 @@ import {
   createComment,
   createPost,
   fetchComments,
+  fetchDiscoverPool,
   fetchLatestVerification,
   fetchPosts,
   joinWaitlist,
@@ -48,6 +49,13 @@ export type CommSort = 'top' | 'new';
 export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile';
 export type Intent = '' | 'community' | 'dating' | 'both';
 export type AuthType = 'login' | 'signup';
+/**
+ * How the Discover pool got to its current contents, so the empty grid can say
+ * which kind of empty it is: still loading, failed to load, or genuinely nobody
+ * here yet. 'idle' means we haven't asked — the member isn't verified, so there
+ * is nothing to ask for.
+ */
+export type PoolState = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface User {
   name: string;
@@ -161,23 +169,31 @@ export interface H {
   turnDatingOn: () => void;
   toggleDating: () => void;
 
-  liked: number[];
-  hidden: number[];
-  matched: number[];
-  doLike: (id: number) => void;
-  passProfile: (id: number) => void;
-  openChat: (id: number) => void;
+  /**
+   * Every member this account may see in Discover, loaded from the database.
+   * Empty until a verified member signs in — the app ships with no people in it.
+   */
+  pool: Profile[];
+  poolState: PoolState;
+  reloadPool: () => void;
+
+  liked: string[];
+  hidden: string[];
+  matched: string[];
+  doLike: (id: string) => void;
+  passProfile: (id: string) => void;
+  openChat: (id: string) => void;
   startOver: () => void;
 
-  detailId: number | null;
-  openDetail: (id: number) => void;
+  detailId: string | null;
+  openDetail: (id: string) => void;
   closeDetail: () => void;
 
-  chatId: number | null;
+  chatId: string | null;
   chatDraft: string;
   setChatDraft: (v: string) => void;
   chatTyping: boolean;
-  convos: Record<number, ChatMsg[]>;
+  convos: Record<string, ChatMsg[]>;
   sendChat: () => void;
   closeChat: () => void;
 
@@ -190,7 +206,7 @@ export interface H {
   userProfile: UserProfile;
   seeking?: string;
 
-  matchPopId: number | null;
+  matchPopId: string | null;
   closeMatchPop: () => void;
 
   commCat: string;
@@ -221,7 +237,7 @@ export interface H {
   appealChat: (verificationId: string, messages: AppealChatMessage[]) => Promise<{ reply?: string; escalated?: boolean; error?: string }>;
   requestHumanReview: (verificationId: string) => Promise<{ escalated?: boolean; error?: string }>;
 
-  prof: (id: number) => Profile | undefined;
+  prof: (id: string) => Profile | undefined;
 }
 
 function scrollBottom(elId: string) {
@@ -259,10 +275,14 @@ export default function HaplyApp() {
   const [gsMetro, setGsMetro] = useState<LaunchMetro | null>(null);
   const [journey, setJourney] = useState<JourneyInfo>({ metro: null, stage: null, coParenting: {} });
 
-  const [liked, setLiked] = useState<number[]>([1, 3]);
-  const [hidden, setHidden] = useState<number[]>([]);
-  const [matched, setMatched] = useState<number[]>([1, 3]);
-  const [convos, setConvos] = useState<Record<number, ChatMsg[]>>({
+  // Likes, matches and conversations are still local demo state driven by
+  // CHAT_REPLIES, so they only make sense against the demo profiles they key
+  // off. A real account starts empty rather than opening on two matches and two
+  // conversations it never had.
+  const [liked, setLiked] = useState<string[]>(DEMO_PROFILES_ENABLED ? ['1', '3'] : []);
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [matched, setMatched] = useState<string[]>(DEMO_PROFILES_ENABLED ? ['1', '3'] : []);
+  const [convos, setConvos] = useState<Record<string, ChatMsg[]>>(DEMO_PROFILES_ENABLED ? {
     1: [
       { from: 'them', text: "Hey! Thanks for the match. How's your day going?", time: '2h ago' },
       { from: 'me', text: "Hi! It's going great, thanks! Love your profile, you seem really interesting.", time: '1h ago' }
@@ -271,12 +291,12 @@ export default function HaplyApp() {
       { from: 'me', text: 'Hi there! Your art sounds amazing. Would love to hear more about it!', time: '4h ago' },
       { from: 'them', text: "Thank you! I'd love to share. Do you have any creative hobbies?", time: '3h ago' }
     ]
-  });
-  const [chatId, setChatId] = useState<number | null>(null);
+  } : {});
+  const [chatId, setChatId] = useState<string | null>(null);
   const [chatDraft, setChatDraft] = useState('');
   const [chatTyping, setChatTyping] = useState(false);
-  const replyIdx = useRef<Record<number, number>>({});
-  const chatIdRef = useRef<number | null>(null);
+  const replyIdx = useRef<Record<string, number>>({});
+  const chatIdRef = useRef<string | null>(null);
   chatIdRef.current = chatId;
 
   const [aiMsgs, setAiMsgs] = useState<AiMsg[]>([
@@ -316,8 +336,8 @@ export default function HaplyApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, datingOn]);
 
-  const [detailId, setDetailId] = useState<number | null>(null);
-  const [matchPopId, setMatchPopId] = useState<number | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [matchPopId, setMatchPopId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastT = useRef<ReturnType<typeof setTimeout>>();
 
@@ -333,6 +353,45 @@ export default function HaplyApp() {
   const [verification, setVerification] = useState<VerificationInfo>({ divorceVerified: false, divorceStatus: null, divorceVerifiedAt: null });
   const [latestVerification, setLatestVerification] = useState<VerificationSubmission | null>(null);
   const [profileReturnPage, setProfileReturnPage] = useState<Page>('community');
+
+  /**
+   * The member pool behind Discover and the matchmaker.
+   *
+   * Starts as PROFILES, which is empty unless VITE_DEMO_PROFILES=1, and fills
+   * from the database once a verified member signs in. Demo profiles stay
+   * appended behind the real ones when that flag is on, so a development build
+   * still has a populated grid without ever putting invented people in front of
+   * a real member in production.
+   */
+  const [pool, setPool] = useState<Profile[]>(PROFILES);
+  const [poolState, setPoolState] = useState<PoolState>('idle');
+  const [poolNonce, setPoolNonce] = useState(0);
+  const reloadPool = () => setPoolNonce((n) => n + 1);
+
+  const canBrowse = !!user?.id && verification.divorceVerified;
+  useEffect(() => {
+    // Browsing requires a verified account: get_discover_feed returns nothing to
+    // anyone else, so asking before then would just be a guaranteed empty read.
+    if (!canBrowse) {
+      setPool(PROFILES);
+      setPoolState('idle');
+      return;
+    }
+    let live = true;
+    setPoolState('loading');
+    void fetchDiscoverPool().then((members) => {
+      if (!live) return;
+      if (!members) {
+        setPoolState('error');
+        return;
+      }
+      setPool([...members, ...PROFILES]);
+      setPoolState('ready');
+    });
+    return () => {
+      live = false;
+    };
+  }, [canBrowse, poolNonce]);
 
   useEffect(() => () => clearTimeout(toastT.current), []);
 
@@ -352,14 +411,14 @@ export default function HaplyApp() {
     if (extraTab) setDashTab(extraTab);
   };
 
-  const prof = (id: number) => PROFILES.find((p) => p.id === id);
+  const prof = (id: string) => pool.find((p) => p.id === id);
 
   const scrollAnchor = (id: string) => {
     const el = document.getElementById(id);
     if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
   };
 
-  const doLike = (id: number) => {
+  const doLike = (id: string) => {
     if (liked.includes(id)) return;
     setLiked((l) => [...l, id]);
     if (LIKES_BACK.includes(id) && !matched.includes(id)) {
@@ -369,7 +428,7 @@ export default function HaplyApp() {
     }
   };
 
-  const openChat = (id: number) => {
+  const openChat = (id: string) => {
     if (matched.includes(id)) {
       setChatId(id);
       setDetailId(null);
@@ -396,11 +455,11 @@ export default function HaplyApp() {
         setChatTyping(false);
         return;
       }
-      const pool = CHAT_REPLIES[id] || ["That's so great to hear!", 'Tell me more about yourself 😊'];
+      const replies = CHAT_REPLIES[id] || ["That's so great to hear!", 'Tell me more about yourself 😊'];
       const idx = replyIdx.current[id] || 0;
       replyIdx.current[id] = idx + 1;
       setChatTyping(false);
-      setConvos((c) => ({ ...c, [id]: [...(c[id] || []), { from: 'them', text: pool[idx % pool.length], time: 'Just now' }] }));
+      setConvos((c) => ({ ...c, [id]: [...(c[id] || []), { from: 'them', text: replies[idx % replies.length], time: 'Just now' }] }));
       scrollBottom('chatScroll');
     }, 1500);
   };
@@ -429,9 +488,9 @@ export default function HaplyApp() {
       setUserProfile(profile);
       // Snapshot results against the profile THIS turn produced. Deriving them at
       // render time instead would rewrite the whole history on every new message.
-      const intros = ready ? buildIntros(profile, gsLooking, 8) : undefined;
+      const intros = ready ? buildIntros(pool, profile, gsLooking, 8) : undefined;
       const filters = ready ? describeFilters(profile, gsLooking) : undefined;
-      const total = ready ? countMatches(profile, gsLooking) : undefined;
+      const total = ready ? countMatches(pool, profile, gsLooking) : undefined;
       // Keep a beat of "typing" so a fast reply doesn't snap in unnaturally.
       setTimeout(
         () => {
@@ -889,7 +948,10 @@ export default function HaplyApp() {
     appealChat: (verificationId, messages) => appealChat(verificationId, messages),
     requestHumanReview: (verificationId) => requestHumanReview(verificationId),
 
-    prof
+    prof,
+    pool,
+    poolState,
+    reloadPool
   };
 
   return (

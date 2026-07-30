@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { EVENTS, PROFILES, type Profile } from './data';
+import { EVENTS, type Profile } from './data';
 import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './CommunityPublic';
 import { DivorceVerification } from './DivorceVerification';
@@ -257,7 +257,8 @@ function FilterBar({
   detected,
   locating,
   locError,
-  onUseCurrentLocation
+  onUseCurrentLocation,
+  pool
 }: {
   draft: DiscoverFilters;
   setDraft: (v: DiscoverFilters) => void;
@@ -269,14 +270,16 @@ function FilterBar({
   locating: boolean;
   locError: string | null;
   onUseCurrentLocation: () => void;
+  /** Drives the interest chips and city list, so both only offer what is there. */
+  pool: Profile[];
 }) {
   const set = (patch: Partial<DiscoverFilters>) => setDraft({ ...draft, ...patch });
-  const opts = useMemo(() => interestOptions(14), []);
+  const opts = useMemo(() => interestOptions(pool, 14), [pool]);
   const cities = useMemo(() => {
     const seen = new Map<string, { lat: number; lng: number }>();
-    for (const x of PROFILES) if (x.lat !== undefined && x.lng !== undefined && !seen.has(x.location)) seen.set(x.location, { lat: x.lat, lng: x.lng });
+    for (const x of pool) if (x.lat !== undefined && x.lng !== undefined && !seen.has(x.location)) seen.set(x.location, { lat: x.lat, lng: x.lng });
     return [...seen.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, []);
+  }, [pool]);
   const d = emptyFilters();
 
   return (
@@ -525,7 +528,7 @@ function GridCard({ h, p, miles }: { h: H; p: Profile; miles?: number }) {
       </div>
       <div style={{ padding: '11px 13px 13px', display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {p.name}, {p.age}
+          {p.name}{p.age ? `, ${p.age}` : ''}
         </div>
         <div style={{ fontSize: 13, color: '#57534E', marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
           <span>{isParent ? 'Has kids' : 'No kids'}</span>
@@ -597,8 +600,13 @@ function DiscoverTab({ h }: { h: H }) {
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
 
-  const results = useMemo(() => applyFilters(applied, h.hidden), [applied, h.hidden]);
-  const relax = useMemo(() => (results.length === 0 && activeFilterCount(applied) > 0 ? suggestRelax(applied, h.hidden) : null), [results.length, applied, h.hidden]);
+  // applyFromAi is a stable callback handed to the AI sheet, so it reads the
+  // pool through a ref rather than closing over a stale copy of it.
+  const poolRef = useRef(h.pool);
+  poolRef.current = h.pool;
+
+  const results = useMemo(() => applyFilters(h.pool, applied, h.hidden), [h.pool, applied, h.hidden]);
+  const relax = useMemo(() => (results.length === 0 && activeFilterCount(applied) > 0 ? suggestRelax(h.pool, applied, h.hidden) : null), [results.length, h.pool, applied, h.hidden]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(applied);
 
   // Coarse IP-based prefill on first load. It fills the draft only — nothing is
@@ -637,7 +645,7 @@ function DiscoverTab({ h }: { h: H }) {
 
   const applyFromAi = useCallback((p: UserProfile) => {
     setApplied((prev) => {
-      const next = filtersFromProfile(p, prev);
+      const next = filtersFromProfile(p, prev, poolRef.current);
       setDraft(next);
       return next;
     });
@@ -660,6 +668,7 @@ function DiscoverTab({ h }: { h: H }) {
         aiOpen={aiOpen}
         detected={detected}
         locating={locating}
+        pool={h.pool}
         locError={locError}
         onUseCurrentLocation={useCurrentLocation}
       />
@@ -672,7 +681,36 @@ function DiscoverTab({ h }: { h: H }) {
         {dirty && <span style={{ fontSize: 13, color: '#be123c', fontWeight: 600 }}>Filters changed — press Search to apply</span>}
       </div>
 
-      {PROFILES.length === 0 ? (
+      {h.poolState === 'idle' && h.pool.length === 0 ? (
+        // Not verified yet, so there is nothing to load: the feed only returns
+        // members to a verified account. Say what unlocks it instead of showing
+        // an empty grid that looks like a dead product.
+        <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
+          <Ic name="verified_user" size={40} color="#D6CCC2" />
+          <p style={{ color: '#44403C', fontSize: 16, fontWeight: 600, margin: '12px 0 6px' }}>Verify your divorce to browse</p>
+          <p style={{ color: '#78716C', fontSize: 14, margin: '0 auto', lineHeight: 1.6, maxWidth: 420 }}>
+            Everyone in Discover has verified theirs, and that only means something if it applies both ways. Verification usually takes a couple of minutes.
+          </p>
+          <button onClick={() => h.setDashTab('profile')} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 18 }}>
+            Start verification
+          </button>
+        </div>
+      ) : h.poolState === 'loading' && h.pool.length === 0 ? (
+        <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '48px 24px', textAlign: 'center', color: '#78716C', fontSize: 14 }}>
+          Finding members…
+        </div>
+      ) : h.poolState === 'error' ? (
+        // A failed read is not an empty city, and saying "nobody here yet" when
+        // the request simply failed would be a lie the member can't check.
+        <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
+          <Ic name="cloud_off" size={40} color="#D6CCC2" />
+          <p style={{ color: '#44403C', fontSize: 16, fontWeight: 600, margin: '12px 0 6px' }}>Couldn't load members</p>
+          <p style={{ color: '#78716C', fontSize: 14, margin: 0, lineHeight: 1.6 }}>Something went wrong reaching the server.</p>
+          <button onClick={h.reloadPool} className="hvb-cream" style={{ background: '#fff', border: '1px solid #D6CCC2', borderRadius: 999, padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#44403C', cursor: 'pointer', marginTop: 18 }}>
+            Try again
+          </button>
+        </div>
+      ) : h.pool.length === 0 ? (
         // Pre-launch in this metro. Say so plainly rather than dressing an
         // empty city up as a filtering problem — and point at the thing that
         // actually helps, which is more people arriving.
@@ -781,7 +819,7 @@ function IntroCard({ h, intro }: { h: H; intro: Intro }) {
       <div style={{ padding: '10px 12px 12px' }}>
         {/* Name + age is the headline, the way price leads a listing card. */}
         <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.2 }}>
-          {p.name}, {p.age}
+          {p.name}{p.age ? `, ${p.age}` : ''}
         </div>
         <div style={{ fontSize: 12.5, color: '#57534E', margin: '4px 0 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <span>{p.children && p.children !== 'None' ? 'has kids' : 'no kids'}</span>
@@ -962,7 +1000,7 @@ function MatchmakerTab({ h }: { h: H }) {
 }
 
 function MatchesTab({ h }: { h: H }) {
-  const matchList = PROFILES.filter((p) => h.matched.includes(p.id));
+  const matchList = h.pool.filter((p) => h.matched.includes(p.id));
   return (
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18 }}>
       <div style={{ padding: '24px 24px 0' }}>
@@ -976,7 +1014,7 @@ function MatchesTab({ h }: { h: H }) {
                 <img src={mt.image} alt={mt.name} style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover' }} />
                 <div style={{ flex: 1 }}>
                   <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {mt.name}, {mt.age} <TrustChip verified={mt.divorceVerified} demo={mt.demo} size={11} />
+                    {mt.name}{mt.age ? `, ${mt.age}` : ''} <TrustChip verified={mt.divorceVerified} demo={mt.demo} size={11} />
                   </h3>
                   <p style={{ fontSize: 13, color: '#78716C', margin: '2px 0 8px' }}>{mt.location}</p>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FFF1F2', color: '#be123c', fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 999 }}>
@@ -994,7 +1032,7 @@ function MatchesTab({ h }: { h: H }) {
 }
 
 function MessagesTab({ h }: { h: H }) {
-  const msgList = PROFILES.filter((p) => h.matched.includes(p.id)).map((p) => {
+  const msgList = h.pool.filter((p) => h.matched.includes(p.id)).map((p) => {
     const msgs = h.convos[p.id] || [];
     const lastM = msgs[msgs.length - 1];
     return { ...p, last: lastM ? lastM.text : 'Start a conversation', time: lastM ? lastM.time : '' };

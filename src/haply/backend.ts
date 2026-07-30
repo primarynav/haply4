@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
-import type { Post } from './data';
+import { profileFromMember, type MemberRow, type Post, type Profile } from './data';
+import { metroBySlug } from './launchMarkets';
 import type { CoParenting, CustodySchedule, DivorceStage, KidsAgeBand, WantsMoreKids } from './journey';
 import { emptyProfile, type UserProfile } from './matchmaker';
 import { clearReferral, storedReferral } from './referral';
@@ -382,6 +383,38 @@ export async function fetchPublicProfile(uid: string): Promise<PublicProfile | n
       divorceVerified: row.divorce_verified ?? false,
       divorceStatus: (row.divorce_status as ClaimedStatus) ?? null
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every member the signed-in member is allowed to see in Discover.
+ *
+ * Goes through `get_discover_feed`, which is the only read path that returns
+ * other people's profiles: the row policy on `profiles` limits a plain select to
+ * your own row, so the RPC carries the gating instead — both sides verified,
+ * target not banned, paused or dating-off, neither having blocked the other —
+ * and returns an explicit column list rather than whole rows.
+ *
+ * The whole visible pool is fetched once and filtered in the browser. That keeps
+ * the filter bar instant while adjusting a slider, and it is the only way the
+ * radius, smoking, drinking and education filters can work at all, since those
+ * are client-side notions with no column behind them. The RPC also takes the
+ * coarse filters as arguments; start passing them, and paging with `total_count`,
+ * when a metro outgrows one page.
+ *
+ * Returns null on failure so the caller can tell "couldn't load" from "nobody
+ * matches yet" — an empty launch metro is a normal state here, not an error.
+ */
+export async function fetchDiscoverPool(): Promise<Profile[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_discover_feed', { p_limit: 200 });
+    if (error || !data) return null;
+    return (data as MemberRow[]).map((row) => {
+      const m = metroBySlug(row.metro);
+      return profileFromMember(row, m ? { lat: m.lat, lng: m.lng } : undefined);
+    });
   } catch {
     return null;
   }

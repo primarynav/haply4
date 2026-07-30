@@ -1,4 +1,4 @@
-import { PROFILES, type Profile } from './data';
+import type { Profile } from './data';
 
 export type Seeking = 'women' | 'men' | 'anyone';
 export type AskKey = 'age' | 'city' | 'seeking' | 'kids' | 'interests' | null;
@@ -378,9 +378,9 @@ function resolveSeeking(p: UserProfile, fallbackLooking?: string): Seeking | und
 }
 
 /** Everyone who clears the hard filters, before any ranking or slicing. */
-function eligiblePool(p: UserProfile, fallbackLooking?: string): Profile[] {
+function eligiblePool(members: Profile[], p: UserProfile, fallbackLooking?: string): Profile[] {
   const seeking = resolveSeeking(p, fallbackLooking);
-  let pool = PROFILES;
+  let pool = members;
   if (seeking === 'women') pool = pool.filter((x) => x.gender === 'woman');
   else if (seeking === 'men') pool = pool.filter((x) => x.gender === 'man');
 
@@ -391,8 +391,8 @@ function eligiblePool(p: UserProfile, fallbackLooking?: string): Profile[] {
 }
 
 /** How many members clear the hard filters — the "I found N" figure. */
-export function countMatches(p: UserProfile, fallbackLooking?: string): number {
-  return eligiblePool(p, fallbackLooking).length;
+export function countMatches(members: Profile[], p: UserProfile, fallbackLooking?: string): number {
+  return eligiblePool(members, p, fallbackLooking).length;
 }
 
 /**
@@ -415,8 +415,8 @@ export function describeFilters(p: UserProfile, fallbackLooking?: string): strin
   return out;
 }
 
-export function buildIntros(p: UserProfile, fallbackLooking?: string, limit = 3): Intro[] {
-  let pool = eligiblePool(p, fallbackLooking);
+export function buildIntros(members: Profile[], p: UserProfile, fallbackLooking?: string, limit = 3): Intro[] {
+  let pool = eligiblePool(members, p, fallbackLooking);
 
   const memberHasKids = !!p.kids && p.kids !== 'No kids';
 
@@ -424,7 +424,7 @@ export function buildIntros(p: UserProfile, fallbackLooking?: string, limit = 3)
     let s = 0;
     const reasons: string[] = [];
 
-    if (p.age) {
+    if (p.age && x.age) {
       const diff = Math.abs(x.age - p.age);
       s += Math.max(0, (p.prefSameAge ? 26 : 18) - diff);
       if (diff <= 6) reasons.push('close to your age');

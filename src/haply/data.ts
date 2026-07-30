@@ -3,7 +3,12 @@ import { COMMUNITY_POSTS } from './communityPosts';
 import type { CustodySchedule, KidsAgeBand, WantsMoreKids } from './journey';
 
 export interface Profile {
-  id: number;
+  /**
+   * A real member's account id (uuid), or the index of a demo profile as a
+   * string. One type for both so likes, matches and conversations key off the
+   * same field whichever kind of profile they point at.
+   */
+  id: string;
   name: string;
   gender: 'man' | 'woman';
   age: number;
@@ -112,12 +117,12 @@ export const HERO_SLIDES: HeroSlide[] = [
 // The six hand-written members stay first — CHAT_REPLIES and LIKES_BACK key off
 // their ids — with the generated test pool appended behind them.
 const SEED_PROFILES: Profile[] = [
-  { id: 1, name: 'Emily', gender: 'woman', age: 42, location: 'Seattle, WA', lat: 47.61, lng: -122.33, image: 'https://images.unsplash.com/photo-1690444963408-9573a17a8058?w=1080&q=80&fit=crop', bio: 'Divorced mom of two, yoga instructor, loves hiking and good coffee. Looking for genuine connection and someone who values mindfulness and outdoor adventures.', divorceYear: 2021, interests: ['Yoga', 'Hiking', 'Photography'], occupation: 'Yoga Instructor', education: "Bachelor's in Health Sciences", height: '5\'6"', children: '2 (ages 8 and 10)', lookingFor: 'A genuine connection with someone who understands the journey of starting over and values family, wellness, and authentic communication.', smoking: 'No', drinking: 'Socially' },
-  { id: 2, name: 'Michael', gender: 'man', age: 38, location: 'Portland, OR', lat: 45.52, lng: -122.68, image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1080&q=80&fit=crop', bio: 'Recently divorced dad, software engineer, enjoys cooking and weekend adventures. Ready for a fresh start with someone who appreciates good food and spontaneous road trips.', divorceYear: 2022, interests: ['Cooking', 'Technology', 'Travel'], occupation: 'Software Engineer', education: "Master's in Computer Science", height: '6\'0"', children: '1 (age 6)', lookingFor: "Looking for a partner who enjoys both cozy nights in and outdoor adventures. Someone who values family and isn't afraid of a little spontaneity.", smoking: 'No', drinking: 'Socially' },
-  { id: 3, name: 'Sarah', gender: 'woman', age: 35, location: 'San Francisco, CA', lat: 37.77, lng: -122.42, image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=1080&q=80&fit=crop', bio: 'Artist and teacher who believes in second chances. Love painting, museums, and weekend farmers markets. Looking for someone who appreciates creativity and meaningful conversations.', divorceYear: 2020, interests: ['Art', 'Teaching', 'Museums'], occupation: 'Art Teacher', education: 'MFA in Fine Arts', height: '5\'7"', children: 'No children', lookingFor: "Seeking a partner who appreciates art, culture, and deep conversations. Someone who sees beauty in the everyday and isn't afraid to try new things.", smoking: 'No', drinking: 'Rarely' },
-  { id: 4, name: 'David', gender: 'man', age: 44, location: 'Austin, TX', lat: 30.27, lng: -97.74, image: 'https://images.unsplash.com/photo-1622812947502-0a643f17387e?w=1080&q=80&fit=crop', bio: 'Musician by night, accountant by day. Two kids who are my world. Looking for someone who gets it.', divorceYear: 2019, interests: ['Music', 'Parenting', 'Live Shows'], smoking: 'Occasionally', drinking: 'Regularly' },
-  { id: 5, name: 'Jessica', gender: 'woman', age: 39, location: 'Denver, CO', lat: 39.74, lng: -104.99, image: 'https://images.unsplash.com/photo-1650484094047-bbbf2ca7c261?w=1080&q=80&fit=crop', bio: 'Nurse, adventurer, dog mom. Divorced and ready to write a new chapter filled with laughter and love.', divorceYear: 2021, interests: ['Healthcare', 'Dogs', 'Adventure'], smoking: 'No', drinking: 'Socially' },
-  { id: 6, name: 'James', gender: 'man', age: 41, location: 'Chicago, IL', lat: 41.88, lng: -87.63, image: 'https://images.unsplash.com/photo-1638016329956-1127c6e4c96f?w=1080&q=80&fit=crop', bio: 'Chef and single dad who believes the best meals are shared. Looking for someone to create new memories with.', divorceYear: 2020, interests: ['Cooking', 'Wine', 'Family Time'], smoking: 'No', drinking: 'Socially' }
+  { id: '1', name: 'Emily', gender: 'woman', age: 42, location: 'Seattle, WA', lat: 47.61, lng: -122.33, image: 'https://images.unsplash.com/photo-1690444963408-9573a17a8058?w=1080&q=80&fit=crop', bio: 'Divorced mom of two, yoga instructor, loves hiking and good coffee. Looking for genuine connection and someone who values mindfulness and outdoor adventures.', divorceYear: 2021, interests: ['Yoga', 'Hiking', 'Photography'], occupation: 'Yoga Instructor', education: "Bachelor's in Health Sciences", height: '5\'6"', children: '2 (ages 8 and 10)', lookingFor: 'A genuine connection with someone who understands the journey of starting over and values family, wellness, and authentic communication.', smoking: 'No', drinking: 'Socially' },
+  { id: '2', name: 'Michael', gender: 'man', age: 38, location: 'Portland, OR', lat: 45.52, lng: -122.68, image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1080&q=80&fit=crop', bio: 'Recently divorced dad, software engineer, enjoys cooking and weekend adventures. Ready for a fresh start with someone who appreciates good food and spontaneous road trips.', divorceYear: 2022, interests: ['Cooking', 'Technology', 'Travel'], occupation: 'Software Engineer', education: "Master's in Computer Science", height: '6\'0"', children: '1 (age 6)', lookingFor: "Looking for a partner who enjoys both cozy nights in and outdoor adventures. Someone who values family and isn't afraid of a little spontaneity.", smoking: 'No', drinking: 'Socially' },
+  { id: '3', name: 'Sarah', gender: 'woman', age: 35, location: 'San Francisco, CA', lat: 37.77, lng: -122.42, image: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=1080&q=80&fit=crop', bio: 'Artist and teacher who believes in second chances. Love painting, museums, and weekend farmers markets. Looking for someone who appreciates creativity and meaningful conversations.', divorceYear: 2020, interests: ['Art', 'Teaching', 'Museums'], occupation: 'Art Teacher', education: 'MFA in Fine Arts', height: '5\'7"', children: 'No children', lookingFor: "Seeking a partner who appreciates art, culture, and deep conversations. Someone who sees beauty in the everyday and isn't afraid to try new things.", smoking: 'No', drinking: 'Rarely' },
+  { id: '4', name: 'David', gender: 'man', age: 44, location: 'Austin, TX', lat: 30.27, lng: -97.74, image: 'https://images.unsplash.com/photo-1622812947502-0a643f17387e?w=1080&q=80&fit=crop', bio: 'Musician by night, accountant by day. Two kids who are my world. Looking for someone who gets it.', divorceYear: 2019, interests: ['Music', 'Parenting', 'Live Shows'], smoking: 'Occasionally', drinking: 'Regularly' },
+  { id: '5', name: 'Jessica', gender: 'woman', age: 39, location: 'Denver, CO', lat: 39.74, lng: -104.99, image: 'https://images.unsplash.com/photo-1650484094047-bbbf2ca7c261?w=1080&q=80&fit=crop', bio: 'Nurse, adventurer, dog mom. Divorced and ready to write a new chapter filled with laughter and love.', divorceYear: 2021, interests: ['Healthcare', 'Dogs', 'Adventure'], smoking: 'No', drinking: 'Socially' },
+  { id: '6', name: 'James', gender: 'man', age: 41, location: 'Chicago, IL', lat: 41.88, lng: -87.63, image: 'https://images.unsplash.com/photo-1638016329956-1127c6e4c96f?w=1080&q=80&fit=crop', bio: 'Chef and single dad who believes the best meals are shared. Looking for someone to create new memories with.', divorceYear: 2020, interests: ['Cooking', 'Wine', 'Family Time'], smoking: 'No', drinking: 'Socially' }
 ];
 
 /**
@@ -135,17 +140,104 @@ const SEED_PROFILES: Profile[] = [
 export const DEMO_PROFILES_ENABLED = import.meta.env.VITE_DEMO_PROFILES === '1';
 
 export const PROFILES: Profile[] = DEMO_PROFILES_ENABLED
-  ? [...SEED_PROFILES, ...GENERATED_PROFILES].map((p) => ({ ...p, demo: true, divorceVerified: false }))
+  // GENERATED_PROFILES is parsed from JSON, where the ids are still numbers.
+  ? [...SEED_PROFILES, ...GENERATED_PROFILES].map((p) => ({ ...p, id: String(p.id), demo: true, divorceVerified: false }))
   : [];
 
-export const LIKES_BACK = [2, 5];
+export const LIKES_BACK = ['2', '5'];
 
-export const CHAT_REPLIES: Record<number, string[]> = {
+export const CHAT_REPLIES: Record<string, string[]> = {
   1: ['That sounds lovely! I just got back from a morning yoga class by the water.', 'Would you want to grab coffee near Pike Place this weekend?'],
   2: ['Hey! Great to finally chat. Road trip season is coming up!', 'Any favorite weekend spots around Portland?'],
   3: ["I'd love that! I'm prepping a new gallery piece this week.", "Have you seen the new exhibit at SFMOMA? It's wonderful."],
   5: ['Hi! So glad we matched. My dog already approves of you 🐶', 'Do you hike? I know some great trails outside Denver.']
 };
+
+/**
+ * Placeholder portrait for a real member.
+ *
+ * Nobody can upload a photo yet, so every real member needs something in the
+ * card's image slot. It has to be generated rather than borrowed: dropping a
+ * stock photo of a stranger onto a real person's profile invents an appearance
+ * for them, which is the same fabrication the demo-profile rules exist to stop.
+ * An initial on a tinted card is obviously a placeholder and says so.
+ *
+ * The tint is picked from the id so a member keeps the same one everywhere.
+ */
+export function initialsAvatar(name: string, seed: string): string {
+  const TINTS = ['#E8DCCF', '#DCE4E2', '#E9DDE4', '#E2E1D4', '#DFE0E9', '#EADED6'];
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const bg = TINTS[(h >>> 0) % TINTS.length];
+  const initial = (name.trim()[0] || '?').toUpperCase();
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">` +
+    `<rect width="400" height="300" fill="${bg}"/>` +
+    `<text x="200" y="200" text-anchor="middle" font-family="Georgia,serif" font-size="140" fill="#8A7F76">${initial}</text>` +
+    `</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/**
+ * A real member as Discover renders them.
+ *
+ * Only the fields the RPC actually returns get filled in. The rest — smoking,
+ * drinking, education, height — stay undefined rather than being guessed, and
+ * the filters treat undefined as "not stated" instead of excluding them.
+ * Coordinates come from the member's launch metro, not their address, so the
+ * distance filter works at metro resolution without anyone's location being
+ * published.
+ */
+export function profileFromMember(row: MemberRow, metroPoint?: { lat: number; lng: number }): Profile {
+  const name = row.name || 'Member';
+  return {
+    id: row.id,
+    name,
+    gender: row.gender === 'man' ? 'man' : 'woman',
+    age: row.age ?? 0,
+    location: row.city || '',
+    lat: metroPoint?.lat,
+    lng: metroPoint?.lng,
+    image: initialsAvatar(name, row.id),
+    bio: row.intro || '',
+    divorceYear: row.divorce_year ?? 0,
+    interests: row.interests ?? [],
+    children: row.kids ?? undefined,
+    // Real members reach Discover only after their divorce is verified, so this
+    // badge is always earned here — unlike the demo profiles, which force it off.
+    divorceVerified: true,
+    metro: row.metro ?? undefined,
+    kidsAtHome: row.kids_at_home ?? undefined,
+    kidsAgeBands: (row.kids_age_bands as KidsAgeBand[]) ?? undefined,
+    custodySchedule: (row.custody_schedule as CustodySchedule) ?? undefined,
+    wantsMoreKids: (row.wants_more_kids as WantsMoreKids) ?? undefined
+  };
+}
+
+/** One row of `get_discover_feed` — see supabase/migrations/*_discover_feed.sql. */
+export interface MemberRow {
+  id: string;
+  name: string | null;
+  age: number | null;
+  gender: string | null;
+  city: string | null;
+  metro: string | null;
+  intro: string | null;
+  kids: string | null;
+  interests: string[] | null;
+  divorce_status: string | null;
+  divorce_year: number | null;
+  divorce_stage: string | null;
+  kids_at_home: boolean | null;
+  kids_age_bands: string[] | null;
+  custody_schedule: string | null;
+  wants_more_kids: string | null;
+  last_active: string | null;
+  total_count: number;
+}
 
 export const POSTS: Post[] = COMMUNITY_POSTS;
 

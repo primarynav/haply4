@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
-import { PROFILES } from './data';
 import { distanceMiles } from './discoverFilters';
+import { LAUNCH_METROS } from './launchMarkets';
 
 export interface DetectedLocation {
   /** A city from the member pool, so it can drive the distance filter directly. */
@@ -13,18 +13,17 @@ export interface DetectedLocation {
   offBy: number;
 }
 
-/** Cities that actually have members, with coordinates. Built once. */
-let cityCache: { location: string; lat: number; lng: number }[] | null = null;
+/**
+ * The cities a fix can snap to: the launch metros.
+ *
+ * This used to be derived from the bundled sample profiles, which meant it went
+ * empty the moment those stopped shipping — and an empty list makes
+ * `nearestCity` always return null, so "use my location" silently did nothing.
+ * The launch metros are the honest answer anyway, since they are the only
+ * places dating is open.
+ */
 function cities() {
-  if (!cityCache) {
-    const seen = new Map<string, { location: string; lat: number; lng: number }>();
-    for (const p of PROFILES) {
-      if (p.lat === undefined || p.lng === undefined || seen.has(p.location)) continue;
-      seen.set(p.location, { location: p.location, lat: p.lat, lng: p.lng });
-    }
-    cityCache = [...seen.values()];
-  }
-  return cityCache;
+  return LAUNCH_METROS.map((m) => ({ location: m.label, lat: m.lat, lng: m.lng }));
 }
 
 /**
