@@ -5,7 +5,7 @@ import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './Commu
 import { DivorceVerification } from './DivorceVerification';
 import { generatedAvatarDataUri } from './avatars';
 import { CUSTODY_OPTIONS, KIDS_AGE_BANDS, STAGES, WANTS_MORE_OPTIONS, stageMeta, type CoParenting } from './journey';
-import { metroBySlug } from './launchMarkets';
+import { metroBySlug, metroListSentence } from './launchMarkets';
 import { Ic, Logo, TrustChip, serif } from './ui';
 import type { Intro, UserProfile } from './matchmaker';
 import { detectByIp, detectPrecise, detectQuietly, type DetectedLocation } from './geolocate';
@@ -1220,6 +1220,17 @@ function ProfileTab({ h }: { h: H }) {
           </div>
         </div>
         <StageCard h={h} />
+        {/* Dating vanishing with no explanation reads as a bug. Stage already
+            has its own card explaining itself; location does not, so say it. */}
+        {h.datingBlockedBy === 'location' && (
+          <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 16, padding: '18px 20px' }}>
+            <h4 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>Dating isn't open in your area yet</h4>
+            <p style={{ color: '#57534E', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+              It needs enough members nearby to be worth using, so it opens city by city — currently {metroListSentence()}. You're on the list for yours, and
+              everything in the community works the same wherever you are.
+            </p>
+          </div>
+        )}
         <DivorceVerification h={h} />
         {h.datingAvailable && <CoParentingCard h={h} />}
         <div>

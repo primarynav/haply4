@@ -133,6 +133,8 @@ export interface H {
   setGsWaitlistEmail: (v: string) => void;
   gsWaitlistDone: boolean;
   gsWaitlistSubmit: () => void;
+  /** Create the account anyway — community is national, only dating waits. */
+  gsJoinAnyway: () => void;
   gsBackToPostal: () => void;
 
   /** Metro, stage and co-parenting for the signed-in member. */
@@ -141,6 +143,12 @@ export interface H {
   setStage: (s: DivorceStage) => void;
   /** Whether the dating half of the product is open to this member. */
   datingAvailable: boolean;
+  /**
+   * Why dating is closed, when it is. Stage and location are different answers
+   * and the member deserves the real one — telling someone in Boise that their
+   * divorce stage is the problem would be false.
+   */
+  datingBlockedBy: 'stage' | 'location' | null;
 
   authOpen: boolean;
   authType: AuthType;
@@ -335,6 +343,13 @@ export default function HaplyApp() {
     if (u?.id) void saveProfile(u.id, u.name, userProfile, datingOn, {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, datingOn]);
+
+  /**
+   * Dating needs two things: a stage where dating makes sense, and a launch
+   * metro with enough members to be worth opening. Community has neither
+   * requirement — it works anywhere, so signup is national.
+   */
+  const datingOpen = (stage: DivorceStage | null, metro: string | null) => datingAvailableForStage(stage) && !!metro;
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const [matchPopId, setMatchPopId] = useState<string | null>(null);
@@ -543,15 +558,21 @@ export default function HaplyApp() {
       const stage: DivorceStage | null = gsStage || null;
       // Dating only opens for someone who said they're ready for it, whatever
       // they picked as their intent — the stage answer is the honest one.
-      const wantsDating = intent !== 'community' && datingAvailableForStage(stage);
+      // Dating needs a launch metro as well as a workable stage. Someone who
+      // signed up for dating from outside one still gets an account — community
+      // is national — so record what they came for, which is also how we learn
+      // where the next metro should be.
+      const metro = gsMetro?.slug ?? null;
+      const wantsDating = intent !== 'community' && datingAvailableForStage(stage) && !!metro;
+      if (intent !== 'community' && !metro && gsPostal) void joinWaitlist(u.email, gsPostal, 'dating');
       setDatingOn(wantsDating);
       setVerification({ divorceVerified: false, divorceStatus: null, divorceVerifiedAt: null });
-      setJourney({ metro: gsMetro?.slug ?? null, stage, coParenting: {} });
+      setJourney({ metro, stage, coParenting: {} });
       setDashTab(wantsDating && intent === 'dating' ? 'discover' : 'community');
       void saveProfile(u.id, u.name, userProfile, wantsDating, {
         intent: intent || undefined,
         postal: gsPostal || undefined,
-        metro: gsMetro?.slug ?? null,
+        metro,
         stage
       });
       if (opts.isNew) void acceptTerms(u.id, TERMS_VERSION);
@@ -689,13 +710,18 @@ export default function HaplyApp() {
     },
     gsErr,
     gsContinue: () => {
-      const showDating = gsIntent === 'dating' || gsIntent === 'both';
+      const wantsDating = gsIntent === 'dating' || gsIntent === 'both';
+      // The wizard only asks who you are and who you'd like to meet once the
+      // stage says dating is on the table. Requiring answers it never asked for
+      // left "Dating" plus "Just separated" stuck on Continue with nothing on
+      // screen to fix — the condition has to match what GetStarted renders.
+      const asksDatingQuestions = wantsDating && gsStage === 'ready';
       const metro = metroForPostal(gsPostal);
       const err: GsErr = {
         intent: !gsIntent,
         stage: !gsStage,
-        gender: showDating && !gsGender,
-        looking: showDating && !gsLooking,
+        gender: asksDatingQuestions && !gsGender,
+        looking: asksDatingQuestions && !gsLooking,
         postal: !metroForPostal(gsPostal) && !/^\d{5}(\d{4})?$/.test(gsPostal.replace(/\s|-/g, '')),
         confirm: !gsConfirm
       };
@@ -703,13 +729,17 @@ export default function HaplyApp() {
         setGsErr(err);
         return;
       }
-      // Outside the launch metros we don't create an account we can't serve —
-      // an empty city is a worse first impression than an honest waitlist.
-      if (!metro) {
+      setGsMetro(metro);
+      // Community works anywhere, so a postal code outside the launch metros is
+      // no longer a reason to refuse an account. Only dating is metro-gated, so
+      // only someone who came for dating needs to hear about it first.
+      // Keyed off intent, not off the questions above: someone who came to date
+      // deserves to hear that dating isn't open near them whatever stage
+      // they're at.
+      if (!metro && wantsDating) {
         setGsOutOfArea(true);
         return;
       }
-      setGsMetro(metro);
       setAuthOpen(true);
       setAuthType('signup');
       setAuthError('');
@@ -731,17 +761,28 @@ export default function HaplyApp() {
         else showToast("Couldn't save that just now — please try again.");
       });
     },
+    gsJoinAnyway: () => {
+      setGsOutOfArea(false);
+      setAuthOpen(true);
+      setAuthType('signup');
+      setAuthError('');
+    },
     gsBackToPostal: () => {
       setGsOutOfArea(false);
       setGsWaitlistDone(false);
     },
 
     journey,
-    datingAvailable: datingAvailableForStage(journey.stage),
+    datingAvailable: datingOpen(journey.stage, journey.metro),
+    datingBlockedBy: datingOpen(journey.stage, journey.metro)
+      ? null
+      : !datingAvailableForStage(journey.stage)
+        ? 'stage'
+        : 'location',
     setStage: (s) => {
       setJourney((j) => ({ ...j, stage: s }));
-      if (!datingAvailableForStage(s)) setDatingOn(false);
-      if (user?.id) void saveProfile(user.id, user.name, userProfile, datingAvailableForStage(s) && datingOn, { stage: s });
+      if (!datingOpen(s, journey.metro)) setDatingOn(false);
+      if (user?.id) void saveProfile(user.id, user.name, userProfile, datingOpen(s, journey.metro) && datingOn, { stage: s });
     },
     saveCoParenting: (c) => {
       setJourney((j) => ({ ...j, coParenting: c }));

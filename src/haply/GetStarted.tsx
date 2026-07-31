@@ -37,10 +37,21 @@ function OutOfArea({ h }: { h: H }) {
             </>
           ) : (
             <>
-              <h1 style={{ fontFamily: serif, fontSize: 26, fontWeight: 600, margin: '0 0 10px' }}>We're not in your city yet</h1>
-              <p style={{ color: '#57534E', fontSize: 15, lineHeight: 1.6, margin: '0 0 20px' }}>
-                Haply is open in {metroListSentence()}. We'd rather be genuinely useful in a few places than empty everywhere — a community with nobody in it
-                helps no one. Leave your email and we'll tell you when we reach you.
+              <h1 style={{ fontFamily: serif, fontSize: 26, fontWeight: 600, margin: '0 0 10px' }}>Dating isn't open near you yet</h1>
+              <p style={{ color: '#57534E', fontSize: 15, lineHeight: 1.6, margin: '0 0 16px' }}>
+                Dating needs enough people nearby to be worth anything, so it opens city by city — right now {metroListSentence()}. The community doesn't have
+                that problem: it works wherever you are, and you can join it today.
+              </p>
+              <button
+                onClick={h.gsJoinAnyway}
+                className="hvb-rosedeep"
+                style={{ width: '100%', background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: 14, fontSize: 16, fontWeight: 600, cursor: 'pointer', marginBottom: 18 }}
+              >
+                Join the community — free
+              </button>
+              <p style={{ color: '#57534E', fontSize: 14, lineHeight: 1.6, margin: '0 0 12px' }}>
+                We'll turn dating on for you the moment it reaches your area. Signing up puts your ZIP on that list — or just leave your email if you'd rather
+                wait.
               </p>
               <input
                 type="email"
