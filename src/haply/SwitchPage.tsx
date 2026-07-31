@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { H } from './HaplyApp';
-import { metroListSentence } from './launchMarkets';
+import { metroCountSentence, metroExamples } from './launchMarkets';
 import { noteSource } from './referral';
 import { Ic, Logo, serif } from './ui';
 
@@ -92,9 +92,9 @@ export function SwitchPage({ h }: { h: H }) {
             Where we honestly are
           </h2>
           <p style={{ fontSize: 14.5, color: '#44403C', lineHeight: 1.65, margin: 0 }}>
-            We're new, and we're open in {metroListSentence()} only. We'd rather be genuinely useful in a few cities than thin everywhere — a dating site with
-            nobody near you is the thing you've just experienced. If you're somewhere else, leave your email and we'll tell you when we reach you. Joining is
-            free, and there's nothing to cancel.
+            We're new, and dating is open in {metroCountSentence()}, including {metroExamples()}. We'd rather be genuinely useful where we've opened than thin
+            everywhere, because a dating site with nobody near you is the thing you've just experienced. The community is open wherever you are. If dating
+            hasn't reached you, leave your email and we'll tell you when it does. Joining is free, and there's nothing to cancel.
           </p>
         </div>
 

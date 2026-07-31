@@ -209,7 +209,7 @@ export function GetStarted({ h }: { h: H }) {
               />
               {h.gsErr.postal && <p style={errText}>Please enter a valid 5-digit ZIP code</p>}
               <p style={{ fontSize: 13, color: '#78716C', margin: '6px 0 0', lineHeight: 1.5 }}>
-                We're building city by city — open now in {metroListSentence()}. Anywhere else, we'll add you to the list.
+                You can join from anywhere. Dating opens city by city — {metroListSentence()}. Anywhere else, we'll add you to the list.
               </p>
             </div>
             <button
