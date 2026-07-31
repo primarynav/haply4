@@ -532,10 +532,21 @@ function GridCard({ h, p, miles }: { h: H; p: Profile; miles?: number }) {
         </div>
         <div style={{ fontSize: 13, color: '#57534E', marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
           <span>{isParent ? 'Has kids' : 'No kids'}</span>
-          <span aria-hidden>·</span>
-          <span>Smokes: {p.smoking ?? '—'}</span>
-          <span aria-hidden>·</span>
-          <span>Drinks: {p.drinking ?? '—'}</span>
+          {/* Nothing collects smoking or drinking for real members, so show
+              these only when there is an actual answer rather than a row of
+              em dashes on every card. */}
+          {p.smoking && (
+            <>
+              <span aria-hidden>·</span>
+              <span>Smokes: {p.smoking}</span>
+            </>
+          )}
+          {p.drinking && (
+            <>
+              <span aria-hidden>·</span>
+              <span>Drinks: {p.drinking}</span>
+            </>
+          )}
         </div>
         <div style={{ fontSize: 13, color: '#78716C', marginTop: 3 }}>{p.location}</div>
         {p.education && <div style={{ fontSize: 12, color: '#A8A29E', marginTop: 3 }}>{p.education}</div>}

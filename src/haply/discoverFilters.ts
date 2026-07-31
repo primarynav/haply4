@@ -76,12 +76,17 @@ const COLLEGE = /bachelor|associate|nursing \(rn\)|mba|master|phd|jd|mfa/i;
 function passesEducation(p: Profile, want: DiscoverFilters['education']): boolean {
   if (want === 'any') return true;
   const e = p.education ?? '';
+  // Nothing in the database records education, so every real member leaves this
+  // blank. Excluding blanks would quietly empty the grid for anyone who touches
+  // the filter — unknown is not disqualifying, same rule as everywhere else.
+  if (!e) return true;
   return want === 'grad' ? GRAD.test(e) : COLLEGE.test(e);
 }
 
 function passesDrinking(p: Profile, want: DiscoverFilters['drinking']): boolean {
   if (want === 'any') return true;
   const d = (p.drinking ?? '').toLowerCase();
+  if (!d) return true; // never stated — see passesEducation
   if (want === 'never') return d === 'never';
   return d !== 'regularly';
 }
