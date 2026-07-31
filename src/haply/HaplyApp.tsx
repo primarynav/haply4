@@ -32,7 +32,7 @@ import {
   type VerificationSubmission
 } from './backend';
 import { datingAvailableForStage, type CoParenting, type DivorceStage } from './journey';
-import { metroForPostal, type LaunchMetro } from './launchMarkets';
+import { METRO_OUTSIDE, metroForPostal, type LaunchMetro } from './launchMarkets';
 import { captureReferral } from './referral';
 import { aiTurn } from './aiMatchmaker';
 import type { ProfileTarget } from './avatars';
@@ -345,11 +345,16 @@ export default function HaplyApp() {
   }, [userProfile, datingOn]);
 
   /**
-   * Dating needs two things: a stage where dating makes sense, and a launch
-   * metro with enough members to be worth opening. Community has neither
-   * requirement — it works anywhere, so signup is national.
+   * Dating needs two things: a stage where dating makes sense, and a location
+   * dating has reached. Community has neither requirement — it works anywhere,
+   * so signup is national.
+   *
+   * Both are closed only by an answer we actually have. A blank stage or a
+   * metro we never determined leaves dating open; only a stage that says "not
+   * yet", or a postal code already checked and found outside, closes it.
    */
-  const datingOpen = (stage: DivorceStage | null, metro: string | null) => datingAvailableForStage(stage) && !!metro;
+  const datingOpen = (stage: DivorceStage | null, metro: string | null) =>
+    datingAvailableForStage(stage) && metro !== METRO_OUTSIDE;
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const [matchPopId, setMatchPopId] = useState<string | null>(null);
@@ -562,9 +567,11 @@ export default function HaplyApp() {
       // signed up for dating from outside one still gets an account — community
       // is national — so record what they came for, which is also how we learn
       // where the next metro should be.
-      const metro = gsMetro?.slug ?? null;
-      const wantsDating = intent !== 'community' && datingAvailableForStage(stage) && !!metro;
-      if (intent !== 'community' && !metro && gsPostal) void joinWaitlist(u.email, gsPostal, 'dating');
+      // Record which kind of "no metro" this is: checked and outside, versus
+      // never asked. Only the first should ever close dating.
+      const metro = gsMetro?.slug ?? (gsPostal ? METRO_OUTSIDE : null);
+      const wantsDating = intent !== 'community' && datingOpen(stage, metro);
+      if (intent !== 'community' && metro === METRO_OUTSIDE) void joinWaitlist(u.email, gsPostal, 'dating');
       setDatingOn(wantsDating);
       setVerification({ divorceVerified: false, divorceStatus: null, divorceVerifiedAt: null });
       setJourney({ metro, stage, coParenting: {} });
@@ -774,11 +781,7 @@ export default function HaplyApp() {
 
     journey,
     datingAvailable: datingOpen(journey.stage, journey.metro),
-    datingBlockedBy: datingOpen(journey.stage, journey.metro)
-      ? null
-      : !datingAvailableForStage(journey.stage)
-        ? 'stage'
-        : 'location',
+    datingBlockedBy: datingOpen(journey.stage, journey.metro) ? null : (!datingAvailableForStage(journey.stage) ? 'stage' : 'location'),
     setStage: (s) => {
       setJourney((j) => ({ ...j, stage: s }));
       if (!datingOpen(s, journey.metro)) setDatingOn(false);

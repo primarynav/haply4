@@ -58,6 +58,17 @@ if (import.meta.env.DEV) {
   if (dupes.length) console.error(`launchMarkets: duplicate ZIP prefixes ${[...new Set(dupes)].join(', ')}`);
 }
 
+/**
+ * Stored as a member's metro once their postal code has been checked and found
+ * outside every launch metro.
+ *
+ * Null means we never asked — an older account, or one created before the
+ * question existed — and unknown must not be treated as "outside", or those
+ * members lose dating for a blank field. This sentinel is the difference
+ * between the two, and it deliberately matches no slug.
+ */
+export const METRO_OUTSIDE = 'outside';
+
 export const metroBySlug = (slug: string | null | undefined): LaunchMetro | undefined => LAUNCH_METROS.find((m) => m.slug === slug);
 
 /** US ZIPs only, 5 digits, optional +4 which we ignore. */

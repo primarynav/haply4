@@ -52,8 +52,17 @@ export const STAGES: StageMeta[] = [
 
 export const stageMeta = (s: DivorceStage | null | undefined): StageMeta | undefined => STAGES.find((x) => x.value === s);
 
-/** Dating is opt-in and stage-gated: never offered to someone who said they aren't there yet. */
-export const datingAvailableForStage = (s: DivorceStage | null | undefined): boolean => stageMeta(s)?.datingAvailable ?? false;
+/**
+ * Dating is opt-in and stage-gated: never offered to someone who said they
+ * aren't there yet.
+ *
+ * "Said" is the operative word. An unset stage is not an answer — it is every
+ * account created before the question existed, and treating that blank as a no
+ * silently removes the dating half of the product for them, which reads as the
+ * app being broken rather than as a considered gate. Only a stage that actually
+ * says "not yet" closes dating.
+ */
+export const datingAvailableForStage = (s: DivorceStage | null | undefined): boolean => stageMeta(s)?.datingAvailable ?? true;
 
 /* ------------------------------------------------------------------ */
 /* Co-parenting                                                        */
