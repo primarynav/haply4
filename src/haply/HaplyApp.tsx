@@ -11,6 +11,12 @@ import {
   fetchComments,
   fetchDiscoverPool,
   fetchLatestVerification,
+  fetchMatches,
+  fetchMessages,
+  fetchMyLikeActions,
+  markMatchRead,
+  sendLikeAction,
+  sendMessage,
   fetchPosts,
   joinWaitlist,
   loadProfile,
@@ -28,6 +34,7 @@ import {
   type DbUser,
   type DivorceVerificationFields,
   type JourneyInfo,
+  type MatchSummary,
   type VerificationInfo,
   type VerificationSubmission
 } from './backend';
@@ -188,6 +195,14 @@ export interface H {
   liked: string[];
   hidden: string[];
   matched: string[];
+  /**
+   * The people this member has actually matched with.
+   *
+   * Not derivable from `pool` any more: the discover feed deliberately excludes
+   * anyone you have already liked, so a match is never in it. This is the only
+   * source of a matched member's name and card.
+   */
+  matchedProfiles: Profile[];
   doLike: (id: string) => void;
   passProfile: (id: string) => void;
   openChat: (id: string) => void;
@@ -385,6 +400,8 @@ export default function HaplyApp() {
    */
   const [pool, setPool] = useState<Profile[]>(PROFILES);
   const [poolState, setPoolState] = useState<PoolState>('idle');
+  /** Live matches from the database. Empty for a demo-only build. */
+  const [matchRows, setMatchRows] = useState<MatchSummary[]>([]);
   const [poolNonce, setPoolNonce] = useState(0);
   const reloadPool = () => setPoolNonce((n) => n + 1);
 
@@ -407,6 +424,16 @@ export default function HaplyApp() {
       }
       setPool([...members, ...PROFILES]);
       setPoolState('ready');
+    });
+    // Who this member has already answered, and who they matched with. The feed
+    // excludes both server-side; these keep the buttons and tabs in step.
+    void fetchMyLikeActions().then((mine) => {
+      if (!live || !mine) return;
+      setLiked((l) => [...new Set([...l, ...mine.liked])]);
+      setHidden((h2) => [...new Set([...h2, ...mine.passed])]);
+    });
+    void fetchMatches().then((rows) => {
+      if (live && rows) setMatchRows(rows);
     });
     return () => {
       live = false;
@@ -431,7 +458,38 @@ export default function HaplyApp() {
     if (extraTab) setDashTab(extraTab);
   };
 
-  const prof = (id: string) => pool.find((p) => p.id === id);
+  const matchedProfiles = matchRows.map((m) => m.profile);
+  // Demo matches live in local state; real ones come back from the database.
+  const matchedIds = [...new Set([...matched, ...matchRows.map((m) => m.profile.id)])];
+  /** A match is never in the discover feed, so look there too. */
+  const prof = (id: string) => pool.find((p) => p.id === id) ?? matchedProfiles.find((p) => p.id === id);
+  /**
+   * Demo profiles keep the old local-only behaviour. They have no row in the
+   * database, so writing a like for one would fail a foreign key; everything
+   * about them stays in React state, exactly as before.
+   */
+  const isDemo = (id: string) => pool.find((p) => p.id === id)?.demo === true;
+  const matchIdFor = (profileId: string) => matchRows.find((m) => m.profile.id === profileId)?.matchId;
+
+  const loadConversation = (profileId: string) => {
+    const matchId = matchIdFor(profileId);
+    if (!matchId) return;
+    void fetchMessages(matchId).then((msgs) => {
+      if (!msgs) return;
+      const myId = userRef.current?.id;
+      setConvos((c) => ({
+        ...c,
+        [profileId]: msgs.map((m) => ({
+          from: m.senderId === myId ? 'me' : 'them',
+          text: m.body,
+          time: new Date(m.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+        }))
+      }));
+    });
+    void markMatchRead(matchId).then(() => {
+      setMatchRows((rows) => rows.map((r) => (r.matchId === matchId ? { ...r, unread: 0 } : r)));
+    });
+  };
 
   const scrollAnchor = (id: string) => {
     const el = document.getElementById(id);
@@ -441,21 +499,38 @@ export default function HaplyApp() {
   const doLike = (id: string) => {
     if (liked.includes(id)) return;
     setLiked((l) => [...l, id]);
-    if (LIKES_BACK.includes(id) && !matched.includes(id)) {
-      setMatched((m) => [...m, id]);
-      setConvos((c) => ({ ...c, [id]: c[id] || [] }));
-      setMatchPopId(id);
+
+    if (isDemo(id)) {
+      if (LIKES_BACK.includes(id) && !matchedIds.includes(id)) {
+        setMatched((m) => [...m, id]);
+        setConvos((c) => ({ ...c, [id]: c[id] || [] }));
+        setMatchPopId(id);
+      }
+      return;
     }
+
+    // A real like is written before we know whether it matched — only the
+    // server can tell us, since the other person's like is not ours to read.
+    void sendLikeAction(id, 'like').then((res) => {
+      if (!res) {
+        setLiked((l) => l.filter((x) => x !== id));
+        showToast("That didn't save — please try again.");
+        return;
+      }
+      setMatchRows(res.matches);
+      if (res.newMatch) setMatchPopId(id);
+    });
   };
 
   const openChat = (id: string) => {
-    if (matched.includes(id)) {
-      setChatId(id);
-      setDetailId(null);
-      setMatchPopId(null);
-    } else {
+    if (!matchedIds.includes(id)) {
       showToast("You can only message people you've matched with");
+      return;
     }
+    setChatId(id);
+    setDetailId(null);
+    setMatchPopId(null);
+    if (!isDemo(id)) loadConversation(id);
   };
 
   const sendChat = () => {
@@ -468,8 +543,27 @@ export default function HaplyApp() {
     }
     setConvos((c) => ({ ...c, [id]: [...(c[id] || []), { from: 'me', text, time: 'Just now' }] }));
     setChatDraft('');
-    setChatTyping(true);
     scrollBottom('chatScroll');
+
+    if (!isDemo(id)) {
+      // A real conversation with a real person. Nothing replies on a timer, and
+      // nothing should pretend to: the message is sent, and the other member
+      // answers when they answer.
+      const matchId = matchIdFor(id);
+      if (!matchId) return;
+      void sendMessage(matchId, text).then((ok) => {
+        if (!ok) {
+          showToast("That message didn't send — please try again.");
+          return;
+        }
+        void fetchMatches().then((rows) => rows && setMatchRows(rows));
+      });
+      return;
+    }
+
+    // Demo profiles only: canned replies so the UI can be shown without an
+    // account. Never reachable for a real member.
+    setChatTyping(true);
     setTimeout(() => {
       if (chatIdRef.current !== id) {
         setChatTyping(false);
@@ -847,13 +941,16 @@ export default function HaplyApp() {
 
     liked,
     hidden,
-    matched,
+    matchedProfiles,
+    matched: matchedIds,
     doLike,
     passProfile: (id) => {
       setHidden((hd) => [...hd, id]);
       setDetailId(null);
       const p = prof(id);
       if (p) showToast(`${p.name} hidden from your feed`);
+      // Recorded so they stay hidden after a reload, not just this session.
+      if (!isDemo(id)) void sendLikeAction(id, 'pass');
     },
     openChat,
     startOver: () => {

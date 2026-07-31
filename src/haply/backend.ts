@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { profileFromMember, type MemberRow, type Post, type Profile } from './data';
+import { initialsAvatar, profileFromMember, type MemberRow, type Post, type Profile } from './data';
 import { metroBySlug } from './launchMarkets';
 import type { CoParenting, CustodySchedule, DivorceStage, KidsAgeBand, WantsMoreKids } from './journey';
 import { emptyProfile, type UserProfile } from './matchmaker';
@@ -417,6 +417,162 @@ export async function fetchDiscoverPool(): Promise<Profile[] | null> {
     });
   } catch {
     return null;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Likes, matches and messages                                         */
+/* ------------------------------------------------------------------ */
+
+/** A live match: who it's with, and enough of the last message to list it. */
+export interface MatchSummary {
+  matchId: string;
+  profile: Profile;
+  matchedAt: string;
+  lastBody?: string;
+  lastAt?: string;
+  lastSenderId?: string;
+  unread: number;
+}
+
+export interface DbMessage {
+  id: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+}
+
+/**
+ * Record a like or a pass.
+ *
+ * Both are stored: a pass is how Discover knows not to show someone again, and
+ * the unique constraint on the pair means answering twice is a no-op rather
+ * than an error. Whether this created a match is not something the client can
+ * work out for itself — a member can only read their own likes, so the other
+ * person's is invisible by design — so the answer comes from re-reading the
+ * match list, which the caller needs refreshed anyway.
+ */
+export async function sendLikeAction(targetId: string, action: 'like' | 'pass'): Promise<{ matches: MatchSummary[]; newMatch: boolean } | null> {
+  try {
+    const { error } = await supabase.from('likes').upsert(
+      { liker_id: (await supabase.auth.getUser()).data.user?.id, liked_id: targetId, action },
+      { onConflict: 'liker_id,liked_id' }
+    );
+    if (error) return null;
+    const matches = (await fetchMatches()) ?? [];
+    return { matches, newMatch: action === 'like' && matches.some((m) => m.profile.id === targetId) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Everyone this member has already answered, so Discover and the grid agree
+ * about who has been dealt with. The feed excludes them server-side too; this
+ * is what keeps the like and pass buttons in the right state for anyone still
+ * on screen.
+ */
+export async function fetchMyLikeActions(): Promise<{ liked: string[]; passed: string[] } | null> {
+  try {
+    const { data, error } = await supabase.from('likes').select('liked_id, action');
+    if (error || !data) return null;
+    return {
+      liked: data.filter((r) => r.action === 'like').map((r) => r.liked_id as string),
+      passed: data.filter((r) => r.action === 'pass').map((r) => r.liked_id as string)
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Live matches with the other member's card.
+ *
+ * Goes through get_my_matches rather than the profiles table: holding a match
+ * row does not let you read the other person's profile, since that policy is
+ * own-row-only. Matched members are also deliberately absent from the discover
+ * feed, so this is the only place their details come from.
+ */
+export async function fetchMatches(): Promise<MatchSummary[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_my_matches');
+    if (error || !data) return null;
+    return (data as MatchRow[]).map((row) => ({
+      matchId: row.match_id,
+      matchedAt: row.matched_at,
+      lastBody: row.last_body ?? undefined,
+      lastAt: row.last_at ?? undefined,
+      lastSenderId: row.last_sender_id ?? undefined,
+      unread: Number(row.unread_count ?? 0),
+      profile: {
+        id: row.other_id,
+        name: row.name || 'Member',
+        // Gender isn't returned: you already know who you matched with, and the
+        // card doesn't show it. Defaulted rather than guessed at.
+        gender: 'woman',
+        age: row.age ?? 0,
+        location: row.city || '',
+        image: initialsAvatar(row.name || 'Member', row.other_id),
+        bio: row.intro || '',
+        divorceYear: 0,
+        interests: row.interests ?? [],
+        divorceVerified: true
+      }
+    }));
+  } catch {
+    return null;
+  }
+}
+
+interface MatchRow {
+  match_id: string;
+  other_id: string;
+  name: string | null;
+  age: number | null;
+  city: string | null;
+  intro: string | null;
+  interests: string[] | null;
+  matched_at: string;
+  last_body: string | null;
+  last_at: string | null;
+  last_sender_id: string | null;
+  unread_count: number;
+}
+
+export async function fetchMessages(matchId: string): Promise<DbMessage[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id, sender_id, body, created_at')
+      .eq('match_id', matchId)
+      .order('created_at', { ascending: true })
+      .limit(200);
+    if (error || !data) return null;
+    return data.map((m) => ({ id: m.id as string, senderId: m.sender_id as string, body: m.body as string, createdAt: m.created_at as string }));
+  } catch {
+    return null;
+  }
+}
+
+export async function sendMessage(matchId: string, body: string): Promise<boolean> {
+  try {
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    if (!uid) return false;
+    const { error } = await supabase.from('messages').insert({ match_id: matchId, sender_id: uid, body });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/** Clear the unread count on everything the other person sent in this match. */
+export async function markMatchRead(matchId: string): Promise<void> {
+  try {
+    const uid = (await supabase.auth.getUser()).data.user?.id;
+    if (!uid) return;
+    await supabase.from('messages').update({ read_at: new Date().toISOString() }).eq('match_id', matchId).neq('sender_id', uid).is('read_at', null);
+  } catch {
+    /* a stale unread badge is not worth surfacing */
   }
 }
 

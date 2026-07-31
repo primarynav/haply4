@@ -1011,7 +1011,9 @@ function MatchmakerTab({ h }: { h: H }) {
 }
 
 function MatchesTab({ h }: { h: H }) {
-  const matchList = h.pool.filter((p) => h.matched.includes(p.id));
+  // Real matches come from h.matchedProfiles; demo ones are still in the pool.
+  // A matched member is never in the discover feed, so the pool alone is blind.
+  const matchList = [...h.matchedProfiles, ...h.pool.filter((p) => p.demo && h.matched.includes(p.id))];
   return (
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18 }}>
       <div style={{ padding: '24px 24px 0' }}>
@@ -1043,7 +1045,7 @@ function MatchesTab({ h }: { h: H }) {
 }
 
 function MessagesTab({ h }: { h: H }) {
-  const msgList = h.pool.filter((p) => h.matched.includes(p.id)).map((p) => {
+  const msgList = [...h.matchedProfiles, ...h.pool.filter((p) => p.demo && h.matched.includes(p.id))].map((p) => {
     const msgs = h.convos[p.id] || [];
     const lastM = msgs[msgs.length - 1];
     return { ...p, last: lastM ? lastM.text : 'Start a conversation', time: lastM ? lastM.time : '' };
