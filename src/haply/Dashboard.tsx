@@ -542,8 +542,11 @@ function GridCard({ h, p, miles }: { h: H; p: Profile; miles?: number }) {
         </div>
       </div>
       <div style={{ padding: '11px 13px 13px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.15, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
           {p.name}{p.age ? `, ${p.age}` : ''}
+          {/* Sample profiles must never be mistaken for vetted members, and
+              a real member here is verified by definition — the chip says which. */}
+          <TrustChip verified={p.divorceVerified} demo={p.demo} size={11} />
         </div>
         <div style={{ fontSize: 13, color: '#57534E', marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
           <span>{isParent ? 'Has kids' : 'No kids'}</span>
@@ -855,6 +858,9 @@ function IntroCard({ h, intro }: { h: H; intro: Intro }) {
         {/* Name + age is the headline, the way price leads a listing card. */}
         <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.2 }}>
           {p.name}{p.age ? `, ${p.age}` : ''}
+          {/* Sample profiles must never be mistaken for vetted members, and
+              a real member here is verified by definition — the chip says which. */}
+          <TrustChip verified={p.divorceVerified} demo={p.demo} size={11} />
         </div>
         <div style={{ fontSize: 12.5, color: '#57534E', margin: '4px 0 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <span>{p.children && p.children !== 'None' ? 'has kids' : 'no kids'}</span>

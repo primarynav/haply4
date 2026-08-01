@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './styles.css';
-import { CHAT_REPLIES, DEMO_PROFILES_ENABLED, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
+import { CHAT_REPLIES, DEMO_PROFILES, DEMO_PROFILES_ENABLED, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
 import { absorbMessage, buildIntros, countMatches, describeFilters, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
 import {
   acceptTerms,
@@ -9,6 +9,7 @@ import {
   createComment,
   createPost,
   fetchComments,
+  fetchCanBypassVerification,
   fetchDiscoverPool,
   fetchIsAdmin,
   fetchLatestVerification,
@@ -422,14 +423,30 @@ export default function HaplyApp() {
    * a real member in production.
    */
   const [isAdmin, setIsAdmin] = useState(false);
+  /**
+   * Whether to mix the 2,000 sample profiles into this session's pool.
+   *
+   * The build flag turns them on for everyone, which is right for local work
+   * and wrong for the public site — the reason they stopped shipping is that
+   * invented people in front of real ones costs more credibility than an empty
+   * Discover does. A test account gets them at runtime instead, so one person
+   * can exercise the grid, the matchmaker and matching against a populated pool
+   * while every real visitor still sees only real members.
+   */
+  const [isTestAccount, setIsTestAccount] = useState(false);
+  const showDemoProfiles = DEMO_PROFILES_ENABLED || isTestAccount;
   useEffect(() => {
     if (!user?.id) {
       setIsAdmin(false);
+      setIsTestAccount(false);
       return;
     }
     let live = true;
     void fetchIsAdmin().then((ok) => {
       if (live) setIsAdmin(ok);
+    });
+    void fetchCanBypassVerification().then((ok) => {
+      if (live) setIsTestAccount(ok);
     });
     return () => {
       live = false;
@@ -455,7 +472,7 @@ export default function HaplyApp() {
   useEffect(() => {
     // Signed out there is nobody to ask as, so don't.
     if (!canBrowse) {
-      setPool(PROFILES);
+      setPool(showDemoProfiles ? DEMO_PROFILES : []);
       setPoolState('idle');
       return;
     }
@@ -467,7 +484,7 @@ export default function HaplyApp() {
         setPoolState('error');
         return;
       }
-      setPool([...members, ...PROFILES]);
+      setPool([...members, ...(showDemoProfiles ? DEMO_PROFILES : [])]);
       setPoolState('ready');
     });
     // Who this member has already answered, and who they matched with. The feed
@@ -483,7 +500,7 @@ export default function HaplyApp() {
     return () => {
       live = false;
     };
-  }, [canBrowse, poolNonce]);
+  }, [canBrowse, poolNonce, showDemoProfiles]);
 
   useEffect(() => () => clearTimeout(toastT.current), []);
 

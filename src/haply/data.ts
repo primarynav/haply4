@@ -139,10 +139,25 @@ const SEED_PROFILES: Profile[] = [
  */
 export const DEMO_PROFILES_ENABLED = import.meta.env.VITE_DEMO_PROFILES === '1';
 
-export const PROFILES: Profile[] = DEMO_PROFILES_ENABLED
+/**
+ * The 2,000-person sample pool, built whether or not it is shown.
+ *
+ * Every entry is marked `demo`, which is what makes the UI label it "Example
+ * profile" and refuse it a verification badge. Marked in one place rather than
+ * on 2,000 literals so a new batch cannot forget.
+ */
+export const DEMO_PROFILES: Profile[] =
   // GENERATED_PROFILES is parsed from JSON, where the ids are still numbers.
-  ? [...SEED_PROFILES, ...GENERATED_PROFILES].map((p) => ({ ...p, id: String(p.id), demo: true, divorceVerified: false }))
-  : [];
+  [...SEED_PROFILES, ...GENERATED_PROFILES].map((p) => ({ ...p, id: String(p.id), demo: true, divorceVerified: false }));
+
+/**
+ * The sample profiles every session sees. Off unless VITE_DEMO_PROFILES=1.
+ *
+ * Test accounts get them separately, at runtime — see `showDemoProfiles` in
+ * HaplyApp — so one person can exercise Discover and the matchmaker against a
+ * populated pool without 2,000 invented people appearing on the public site.
+ */
+export const PROFILES: Profile[] = DEMO_PROFILES_ENABLED ? DEMO_PROFILES : [];
 
 export const LIKES_BACK = ['2', '5'];
 
