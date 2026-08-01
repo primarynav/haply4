@@ -10,6 +10,7 @@ import {
   createPost,
   fetchComments,
   fetchDiscoverPool,
+  fetchIsAdmin,
   fetchLatestVerification,
   fetchMatches,
   fetchMessages,
@@ -54,7 +55,7 @@ import { IS_STAGING_BACKEND } from './supabaseClient';
 
 export type Page = 'home' | 'get-started' | 'community' | 'dashboard' | 'community-profile' | 'switch';
 export type CommSort = 'top' | 'new';
-export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile';
+export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile' | 'review';
 export type Intent = '' | 'community' | 'dating' | 'both';
 export type AuthType = 'login' | 'signup';
 /**
@@ -157,6 +158,13 @@ export interface H {
    * divorce stage is the problem would be false.
    */
   datingBlockedBy: 'stage' | 'location' | null;
+
+  /**
+   * Whether this account may review verifications. Answered by the database,
+   * never assumed — it only decides whether the tab is offered; every review
+   * call is gated server-side regardless.
+   */
+  isAdmin: boolean;
 
   authOpen: boolean;
   authType: AuthType;
@@ -399,6 +407,21 @@ export default function HaplyApp() {
    * still has a populated grid without ever putting invented people in front of
    * a real member in production.
    */
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user?.id) {
+      setIsAdmin(false);
+      return;
+    }
+    let live = true;
+    void fetchIsAdmin().then((ok) => {
+      if (live) setIsAdmin(ok);
+    });
+    return () => {
+      live = false;
+    };
+  }, [user?.id]);
+
   const [pool, setPool] = useState<Profile[]>(PROFILES);
   const [poolState, setPoolState] = useState<PoolState>('idle');
   /** Live matches from the database. Empty for a demo-only build. */
@@ -877,6 +900,7 @@ export default function HaplyApp() {
     journey,
     datingAvailable: datingOpen(journey.stage, journey.metro),
     datingBlockedBy: datingOpen(journey.stage, journey.metro) ? null : (!datingAvailableForStage(journey.stage) ? 'stage' : 'location'),
+    isAdmin,
     setStage: (s) => {
       setJourney((j) => ({ ...j, stage: s }));
       if (!datingOpen(s, journey.metro)) setDatingOn(false);

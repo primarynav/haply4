@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENTS, type Profile } from './data';
+import { AdminReview } from './AdminReview';
 import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './CommunityPublic';
 import { DivorceVerification } from './DivorceVerification';
@@ -22,7 +23,9 @@ export function Dashboard({ h }: { h: H }) {
           { tab: 'matches', icon: 'favorite', label: 'Matches', onClick: () => h.setDashTab('matches') },
           { tab: 'messages', icon: 'chat_bubble', label: 'Messages', onClick: () => h.setDashTab('messages') }
         ] as const)
-      : [])
+      : []),
+    // Only for accounts the database recognises as reviewers.
+    ...(h.isAdmin ? ([{ tab: 'review', icon: 'gavel', label: 'Review', onClick: () => h.setDashTab('review') }] as const) : [])
   ];
   return (
     <div style={{ minHeight: '100vh', background: '#FAF7F4' }}>
@@ -81,6 +84,7 @@ export function Dashboard({ h }: { h: H }) {
         {h.dashTab === 'ai-match' && (h.datingAvailable ? <MatchmakerTab h={h} /> : <CommunityTab h={h} />)}
         {h.dashTab === 'matches' && (h.datingAvailable ? <MatchesTab h={h} /> : <CommunityTab h={h} />)}
         {h.dashTab === 'messages' && (h.datingAvailable ? <MessagesTab h={h} /> : <CommunityTab h={h} />)}
+        {h.dashTab === 'review' && (h.isAdmin ? <AdminReview /> : <CommunityTab h={h} />)}
         {h.dashTab === 'profile' && <ProfileTab h={h} />}
       </div>
     </div>

@@ -95,7 +95,7 @@ export const PRIVACY_POLICY: LegalSection[] = [
   },
   {
     heading: 'What other members see',
-    body: 'Your display name, age, city, interests, intro, and community posts/comments are visible to other members. Your verification badge status (verified or not) is visible to other members — that visibility is the point of the feature. Your uploaded document, legal name at time of divorce (if different from your display name), date of birth, and exact address are never shown to other members.'
+    body: 'Your display name, age, city, interests, intro, and community posts/comments are visible to other members. Your verification badge status (verified or not) is visible to other members — that visibility is the point of the feature. Your uploaded document, legal name at time of divorce (if different from your display name), date of birth, and exact address are never shown to other members. Your document is not read by our staff as part of an ordinary verification — that decision is automated. A member of our team can open it only where you have asked us to review a decision, or where the automated check could not resolve it and the submission was referred for review; every such access is logged against the individual reviewer.'
   },
   {
     heading: 'Your rights',
