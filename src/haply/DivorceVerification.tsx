@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { H } from './HaplyApp';
-import type { AppealChatMessage, ClaimedStatus } from './backend';
+import { bypassVerification, fetchCanBypassVerification, type AppealChatMessage, type ClaimedStatus } from './backend';
 import { SUPPORT_EMAIL, VERIFICATION_CONSENT } from './legalContent';
 import { Ic, serif } from './ui';
 
@@ -23,6 +23,13 @@ function StatusBadge({ status }: { status: 'more_info_needed' | 'rejected' | 'pe
 /** Onboarding card: verify your divorce/separation status with an uploaded decree, reviewed by Claude. Shows a real badge state (verified / needs more info / not verified / never submitted) rather than a modal. */
 export function DivorceVerification({ h }: { h: H }) {
   const [step, setStep] = useState<Step>('idle');
+  // Only ever true for accounts deliberately listed in test_accounts. The RPC
+  // behind the button re-checks, so revealing it wrongly grants nothing.
+  const [canBypass, setCanBypass] = useState(false);
+  const [bypassing, setBypassing] = useState(false);
+  useEffect(() => {
+    void fetchCanBypassVerification().then(setCanBypass);
+  }, []);
   const [consentAi, setConsentAi] = useState(false);
   const [consentBadge, setConsentBadge] = useState(false);
   const [consentRedact, setConsentRedact] = useState(false);
@@ -69,6 +76,28 @@ export function DivorceVerification({ h }: { h: H }) {
       </div>
     );
   }
+
+  const bypassCard = canBypass ? (
+    <div style={{ ...cardStyle, border: '1.5px dashed #D6CCC2', background: '#FFFBEB', marginBottom: 14 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>Test account</h3>
+      <p style={{ color: '#57534E', fontSize: 13, margin: '0 0 12px', lineHeight: 1.55 }}>
+        This account is on the test list, so it can take the badge without a document. Nothing is reviewed and no submission is recorded — it exists to
+        exercise the rest of the app, and it is logged.
+      </p>
+      <button
+        disabled={bypassing}
+        onClick={async () => {
+          setBypassing(true);
+          const res = await bypassVerification(statusClaimed);
+          setBypassing(false);
+          if (res.ok) h.markVerifiedForTesting(statusClaimed);
+        }}
+        style={{ background: '#211D1A', color: '#fff', border: 'none', borderRadius: 999, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: bypassing ? 'default' : 'pointer', opacity: bypassing ? 0.6 : 1 }}
+      >
+        {bypassing ? 'Verifying…' : 'Skip verification (test only)'}
+      </button>
+    </div>
+  ) : null;
 
   if (step === 'appeal' && latest) {
     const send = async () => {
@@ -277,6 +306,8 @@ export function DivorceVerification({ h }: { h: H }) {
   if (latest && latest.status !== 'approved') {
     const status = latest.status === 'pending' ? 'pending' : latest.status;
     return (
+      <>
+      {bypassCard}
       <div style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Verify your status</h3>
@@ -326,10 +357,13 @@ export function DivorceVerification({ h }: { h: H }) {
           )}
         </div>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+    {bypassCard}
     <div style={cardStyle}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <Ic name="verified" size={22} color="#A8A29E" />
@@ -342,5 +376,6 @@ export function DivorceVerification({ h }: { h: H }) {
         Verify now
       </button>
     </div>
+    </>
   );
 }

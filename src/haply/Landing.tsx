@@ -88,7 +88,7 @@ export function Landing({ h }: { h: H }) {
               </button>
             </div>
             <p style={{ fontSize: 13, color: '#78716C', margin: 0, lineHeight: 1.6 }}>
-              Free — no credit card, ever. Verification is optional and free too; your document is never shown to anyone and is deleted after 90 days.
+              Free — no credit card, ever. Verification is optional and free too; your document is never shown to other members, is only ever opened by a person if you ask us to review a decision, and is deleted after 90 days.
             </p>
           </div>
           <HeroShowcase />
@@ -105,7 +105,7 @@ export function Landing({ h }: { h: H }) {
               ['Verified', 'members can prove their divorce'],
               ['Free', 'community membership, forever'],
               ['No swiping', 'search and filters, not a card game'],
-              ['Private', 'your document is never shown to anyone']
+              ['Private', 'your document is never shown to other members']
             ] as const
           ).map(([num, label]) => (
             <div key={label}>

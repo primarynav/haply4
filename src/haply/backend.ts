@@ -420,6 +420,137 @@ export async function fetchDiscoverPool(): Promise<Profile[] | null> {
   }
 }
 
+/**
+ * Whether this account may skip verification.
+ *
+ * True only for rows deliberately inserted into test_accounts by SQL — the
+ * table has RLS on and no policies, so it cannot be read or written through the
+ * API, and no member can add themselves. The button this reveals is invisible
+ * to everyone else, and the RPC behind it re-checks independently.
+ */
+export async function fetchCanBypassVerification(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('viewer_can_bypass_verification');
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Mark this test account verified without a document. Test accounts only. */
+export async function bypassVerification(status: ClaimedStatus = 'divorced'): Promise<{ ok?: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.rpc('bypass_verification', { p_status: status });
+    return error ? { error: error.message } : { ok: true };
+  } catch {
+    return { error: 'Could not skip verification.' };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Verification review (admins only)                                   */
+/* ------------------------------------------------------------------ */
+
+export interface ReviewItem {
+  verificationId: string;
+  profileId: string;
+  memberName: string;
+  statusClaimed: ClaimedStatus;
+  status: string;
+  memberMessage?: string;
+  submittedAt: string;
+  escalatedAt?: string;
+  documentPurged: boolean;
+  reason: string;
+}
+
+/**
+ * Whether the signed-in member may review verifications.
+ *
+ * Answered by the database, not by anything the client holds — the same
+ * function guards every review RPC, so a forged "true" here reveals an empty
+ * queue and nothing else.
+ */
+export async function fetchIsAdmin(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('viewer_is_admin');
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Submissions a person is allowed to look at: escalated, or flagged for more info. */
+export async function fetchReviewQueue(): Promise<ReviewItem[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_review_queue');
+    if (error || !data) return null;
+    return (data as ReviewRow[]).map((r) => ({
+      verificationId: r.verification_id,
+      profileId: r.profile_id,
+      memberName: r.member_name || 'Member',
+      statusClaimed: r.status_claimed as ClaimedStatus,
+      status: r.status,
+      memberMessage: r.member_message ?? undefined,
+      submittedAt: r.submitted_at,
+      escalatedAt: r.escalated_at ?? undefined,
+      documentPurged: r.document_purged,
+      reason: r.reason
+    }));
+  } catch {
+    return null;
+  }
+}
+
+interface ReviewRow {
+  verification_id: string;
+  profile_id: string;
+  member_name: string | null;
+  status_claimed: string;
+  status: string;
+  member_message: string | null;
+  submitted_at: string;
+  escalated_at: string | null;
+  document_purged: boolean;
+  reason: string;
+}
+
+/**
+ * A short-lived link to the decree.
+ *
+ * The RPC decides whether this submission is one a person may open and records
+ * that it happened; only then does the storage layer — which enforces the same
+ * rule again — sign a URL. The link lasts minutes, and is never stored.
+ */
+export async function openVerificationDocument(verificationId: string): Promise<{ url?: string; error?: string }> {
+  try {
+    const { data: path, error } = await supabase.rpc('open_verification_document', { p_verification_id: verificationId });
+    if (error || !path) return { error: error?.message || 'This document is no longer available.' };
+    const { data: signed, error: signErr } = await supabase.storage.from('verification-docs').createSignedUrl(path as string, 300);
+    if (signErr || !signed?.signedUrl) return { error: signErr?.message || 'Could not open the document.' };
+    return { url: signed.signedUrl };
+  } catch {
+    return { error: 'Could not open the document.' };
+  }
+}
+
+export async function decideVerification(
+  verificationId: string,
+  decision: 'approved' | 'rejected' | 'more_info_needed',
+  note: string
+): Promise<{ ok?: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.rpc('decide_verification', {
+      p_verification_id: verificationId,
+      p_decision: decision,
+      p_note: note || null
+    });
+    return error ? { error: error.message } : { ok: true };
+  } catch {
+    return { error: 'Could not save that decision.' };
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Likes, matches and messages                                         */
 /* ------------------------------------------------------------------ */

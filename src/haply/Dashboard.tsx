@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENTS, type Profile } from './data';
+import { AdminReview } from './AdminReview';
+
+/**
+ * Photos are blurred for members who have not verified their own divorce.
+ *
+ * Deliberately heavy: it should read as "there is a photo here you can't see
+ * yet", not as a rendering fault. Applied to the image only, so the name, city
+ * and intro underneath stay legible — those are what let someone judge whether
+ * verifying is worth their time.
+ */
+const blurStyle = (on: boolean): React.CSSProperties =>
+  on ? { filter: 'blur(14px)', transform: 'scale(1.06)' } : {};
 import type { DashTab, H } from './HaplyApp';
 import { CatPills, Composer, PostCard, SortToggle, filteredPosts } from './CommunityPublic';
 import { DivorceVerification } from './DivorceVerification';
@@ -22,7 +34,9 @@ export function Dashboard({ h }: { h: H }) {
           { tab: 'matches', icon: 'favorite', label: 'Matches', onClick: () => h.setDashTab('matches') },
           { tab: 'messages', icon: 'chat_bubble', label: 'Messages', onClick: () => h.setDashTab('messages') }
         ] as const)
-      : [])
+      : []),
+    // Only for accounts the database recognises as reviewers.
+    ...(h.isAdmin ? ([{ tab: 'review', icon: 'gavel', label: 'Review', onClick: () => h.setDashTab('review') }] as const) : [])
   ];
   return (
     <div style={{ minHeight: '100vh', background: '#FAF7F4' }}>
@@ -81,6 +95,7 @@ export function Dashboard({ h }: { h: H }) {
         {h.dashTab === 'ai-match' && (h.datingAvailable ? <MatchmakerTab h={h} /> : <CommunityTab h={h} />)}
         {h.dashTab === 'matches' && (h.datingAvailable ? <MatchesTab h={h} /> : <CommunityTab h={h} />)}
         {h.dashTab === 'messages' && (h.datingAvailable ? <MessagesTab h={h} /> : <CommunityTab h={h} />)}
+        {h.dashTab === 'review' && (h.isAdmin ? <AdminReview /> : <CommunityTab h={h} />)}
         {h.dashTab === 'profile' && <ProfileTab h={h} />}
       </div>
     </div>
@@ -489,7 +504,7 @@ function GridCard({ h, p, miles }: { h: H; p: Profile; miles?: number }) {
   return (
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => h.openDetail(p.id)}>
-        <img src={p.image} alt={p.name} loading="lazy" style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block', background: '#F0E9E2' }} />
+        <img src={p.image} alt={h.photosBlurred ? `${p.name} — photo hidden until you verify` : p.name} loading="lazy" style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block', background: '#F0E9E2', ...blurStyle(h.photosBlurred) }} />
         {matched && (
           <span style={{ position: 'absolute', top: 8, left: 8, background: '#e11d48', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 9px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <Ic name="favorite" fill size={11} />
@@ -692,19 +707,28 @@ function DiscoverTab({ h }: { h: H }) {
         {dirty && <span style={{ fontSize: 13, color: '#be123c', fontWeight: 600 }}>Filters changed — press Search to apply</span>}
       </div>
 
+      {h.photosBlurred && h.pool.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '12px 16px', marginBottom: 14 }}>
+          <Ic name="visibility_off" size={20} color="#166534" />
+          <p style={{ margin: 0, fontSize: 14, color: '#166534', lineHeight: 1.5, flex: 1, minWidth: 220 }}>
+            Everyone here has verified their divorce. Verify yours to see photos clearly and to start liking people.
+          </p>
+          <button onClick={() => h.setDashTab('profile')} style={{ background: '#166534', color: '#fff', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+            Verify
+          </button>
+        </div>
+      )}
+
       {h.poolState === 'idle' && h.pool.length === 0 ? (
         // Not verified yet, so there is nothing to load: the feed only returns
         // members to a verified account. Say what unlocks it instead of showing
         // an empty grid that looks like a dead product.
         <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '48px 24px', textAlign: 'center' }}>
-          <Ic name="verified_user" size={40} color="#D6CCC2" />
-          <p style={{ color: '#44403C', fontSize: 16, fontWeight: 600, margin: '12px 0 6px' }}>Verify your divorce to browse</p>
+          <Ic name="person" size={40} color="#D6CCC2" />
+          <p style={{ color: '#44403C', fontSize: 16, fontWeight: 600, margin: '12px 0 6px' }}>Sign in to browse</p>
           <p style={{ color: '#78716C', fontSize: 14, margin: '0 auto', lineHeight: 1.6, maxWidth: 420 }}>
-            Everyone in Discover has verified theirs, and that only means something if it applies both ways. Verification usually takes a couple of minutes.
+            Discover shows verified members once you're signed in.
           </p>
-          <button onClick={() => h.setDashTab('profile')} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '10px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', marginTop: 18 }}>
-            Start verification
-          </button>
         </div>
       ) : h.poolState === 'loading' && h.pool.length === 0 ? (
         <div style={{ background: '#fff', border: '1.5px dashed #D6CCC2', borderRadius: 16, padding: '48px 24px', textAlign: 'center', color: '#78716C', fontSize: 14 }}>
@@ -790,7 +814,7 @@ function IntroCard({ h, intro }: { h: H; intro: Intro }) {
       }}
     >
       <div style={{ position: 'relative' }}>
-        <img src={p.image} alt={p.name} style={{ width: '100%', height: 150, objectFit: 'cover', display: 'block' }} />
+        <img src={p.image} alt={h.photosBlurred ? `${p.name} — photo hidden until you verify` : p.name} style={{ width: '100%', height: 150, objectFit: 'cover', display: 'block', ...blurStyle(h.photosBlurred) }} />
         <button
           onClick={() => h.doLike(p.id)}
           aria-label={liked ? `Unlike ${p.name}` : `Like ${p.name}`}
