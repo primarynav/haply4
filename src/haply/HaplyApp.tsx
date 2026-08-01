@@ -375,6 +375,12 @@ export default function HaplyApp() {
     // /switch has to be a real, linkable URL — it's the target of outreach and
     // search listings, so it can't live behind an in-app click only.
     if (/^\/switch\/?$/i.test(window.location.pathname)) setPage('switch');
+    // The legal documents need real, linkable URLs, not just an in-app modal.
+    // Anyone reviewing this product — Facebook and Apple both require a
+    // publicly reachable privacy policy before an OAuth app can go live — has
+    // to be able to open one without knowing where the button is.
+    if (/^\/privacy\/?$/i.test(window.location.pathname)) setLegalSection('privacy');
+    if (/^\/terms\/?$/i.test(window.location.pathname)) setLegalSection('terms');
   }, []);
   // Signed-in members also get their matchmaker profile saved to their account.
   useEffect(() => {
