@@ -50,6 +50,7 @@ import { CommunityPublic } from './CommunityPublic';
 import { CommunityProfilePage } from './CommunityProfile';
 import { Dashboard } from './Dashboard';
 import { AuthModal, ChatDialog, DetailModal, LegalModal, MatchPop, Toast } from './Overlays';
+import { IS_STAGING_BACKEND } from './supabaseClient';
 
 export type Page = 'home' | 'get-started' | 'community' | 'dashboard' | 'community-profile' | 'switch';
 export type CommSort = 'top' | 'new';
@@ -1108,6 +1109,15 @@ export default function HaplyApp() {
       {chatId !== null && <ChatDialog h={h} />}
       {detailId !== null && <DetailModal h={h} />}
       {matchPopId !== null && <MatchPop h={h} />}
+      {/* A staging build looks exactly like production, so say which one this
+          is. Only ever rendered when the backend is not the production one. */}
+      {IS_STAGING_BACKEND && (
+        <div
+          style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, background: '#211D1A', color: '#FDE68A', fontSize: 12.5, fontWeight: 600, textAlign: 'center', padding: '6px 12px', letterSpacing: '0.02em' }}
+        >
+          Staging — separate test database. Nothing here is real.
+        </div>
+      )}
       {toast && <Toast text={toast} />}
     </>
   );
