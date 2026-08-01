@@ -420,6 +420,33 @@ export async function fetchDiscoverPool(): Promise<Profile[] | null> {
   }
 }
 
+/**
+ * Whether this account may skip verification.
+ *
+ * True only for rows deliberately inserted into test_accounts by SQL — the
+ * table has RLS on and no policies, so it cannot be read or written through the
+ * API, and no member can add themselves. The button this reveals is invisible
+ * to everyone else, and the RPC behind it re-checks independently.
+ */
+export async function fetchCanBypassVerification(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('viewer_can_bypass_verification');
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Mark this test account verified without a document. Test accounts only. */
+export async function bypassVerification(status: ClaimedStatus = 'divorced'): Promise<{ ok?: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.rpc('bypass_verification', { p_status: status });
+    return error ? { error: error.message } : { ok: true };
+  } catch {
+    return { error: 'Could not skip verification.' };
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Verification review (admins only)                                   */
 /* ------------------------------------------------------------------ */

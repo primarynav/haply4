@@ -249,7 +249,9 @@ export function DetailModal({ h }: { h: H }) {
   return (
     <div onClick={h.closeDetail} style={{ position: 'fixed', inset: 0, background: 'rgba(28,25,23,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 760, maxHeight: '90vh', overflow: 'hidden', display: 'grid', gridTemplateColumns: '300px 1fr', animation: 'popin .25s ease' }} data-rs="1">
-        <img data-rs-img="1" src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: 420 }} />
+        {/* Same rule as the grid: a member who hasn't verified their own divorce
+            doesn't get a clear look at anyone else's photo. */}
+        <img data-rs-img="1" src={p.image} alt={h.photosBlurred ? `${p.name} — photo hidden until you verify` : p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: 420, ...(h.photosBlurred ? { filter: 'blur(18px)', transform: 'scale(1.06)' } : {}) }} />
         <div style={{ padding: 28, overflowY: 'auto', position: 'relative' }}>
           <button onClick={h.closeDetail} className="hvc-ink" style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#78716C', padding: 4, display: 'flex' }}>
             <Ic name="close" size={22} />

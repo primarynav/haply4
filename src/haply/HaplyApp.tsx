@@ -166,6 +166,20 @@ export interface H {
    */
   isAdmin: boolean;
 
+  /**
+   * Whether this member sees other people's photos blurred — true until their
+   * own divorce is verified. Cosmetic only: the gate that matters is that they
+   * cannot like anyone until they verify.
+   */
+  photosBlurred: boolean;
+  /**
+   * Reflect a test-account bypass locally so the UI updates without a reload.
+   * The database has already been written by then; this only catches the client
+   * up. It cannot grant anything on its own — the badge other members see comes
+   * from the profile row, not from here.
+   */
+  markVerifiedForTesting: (status: 'divorced' | 'legally_separated') => void;
+
   authOpen: boolean;
   authType: AuthType;
   setAuthType: (t: AuthType) => void;
@@ -429,10 +443,17 @@ export default function HaplyApp() {
   const [poolNonce, setPoolNonce] = useState(0);
   const reloadPool = () => setPoolNonce((n) => n + 1);
 
-  const canBrowse = !!user?.id && verification.divorceVerified;
+  const canBrowse = !!user?.id;
+  /**
+   * Photos are blurred until a member verifies their own divorce.
+   *
+   * Everyone *shown* is verified either way — that half of the promise is
+   * unchanged. What an unverified member gives up is seeing faces clearly, and
+   * being able to like anyone, which is the reason to verify.
+   */
+  const photosBlurred = !verification.divorceVerified;
   useEffect(() => {
-    // Browsing requires a verified account: get_discover_feed returns nothing to
-    // anyone else, so asking before then would just be a guaranteed empty read.
+    // Signed out there is nobody to ask as, so don't.
     if (!canBrowse) {
       setPool(PROFILES);
       setPoolState('idle');
@@ -522,6 +543,13 @@ export default function HaplyApp() {
 
   const doLike = (id: string) => {
     if (liked.includes(id)) return;
+    // The likes insert policy refuses an unverified member, so without this the
+    // click would come back as a generic save failure and tell them nothing.
+    if (!isDemo(id) && !verification.divorceVerified) {
+      showToast('Verify your divorce to like and match — it takes a couple of minutes');
+      setDashTab('profile');
+      return;
+    }
     setLiked((l) => [...l, id]);
 
     if (isDemo(id)) {
@@ -901,6 +929,11 @@ export default function HaplyApp() {
     datingAvailable: datingOpen(journey.stage, journey.metro),
     datingBlockedBy: datingOpen(journey.stage, journey.metro) ? null : (!datingAvailableForStage(journey.stage) ? 'stage' : 'location'),
     isAdmin,
+    photosBlurred,
+    markVerifiedForTesting: (status) => {
+      setVerification({ divorceVerified: true, divorceStatus: status, divorceVerifiedAt: new Date().toISOString() });
+      showToast('Verified for testing — photos are clear and you can like people now');
+    },
     setStage: (s) => {
       setJourney((j) => ({ ...j, stage: s }));
       if (!datingOpen(s, journey.metro)) setDatingOn(false);
@@ -974,8 +1007,10 @@ export default function HaplyApp() {
       setDetailId(null);
       const p = prof(id);
       if (p) showToast(`${p.name} hidden from your feed`);
-      // Recorded so they stay hidden after a reload, not just this session.
-      if (!isDemo(id)) void sendLikeAction(id, 'pass');
+      // Recorded so they stay hidden after a reload, not just this session —
+      // but only an account that may write likes can record a pass, so for an
+      // unverified member this stays a local hide for the session.
+      if (!isDemo(id) && verification.divorceVerified) void sendLikeAction(id, 'pass');
     },
     openChat,
     startOver: () => {
