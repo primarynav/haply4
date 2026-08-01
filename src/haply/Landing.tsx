@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { EVENTS, GROUPS, HERO_SLIDES } from './data';
 import type { H } from './HaplyApp';
-import { metroListSentence } from './launchMarkets';
+import { metroCountSentence } from './launchMarkets';
 import { Ic, Logo, serif, usePrefersReducedMotion } from './ui';
 
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,4vw,32px)' };
@@ -64,7 +64,7 @@ export function Landing({ h }: { h: H }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', padding: '7px 14px', borderRadius: 999, alignSelf: 'flex-start', fontSize: 13, fontWeight: 600 }}>
               <Ic name="verified" fill size={15} />
-              Divorce verified · 21+ · {metroListSentence()}
+              Divorce verified · 21+ · {metroCountSentence()}
             </div>
             <h1 style={{ fontFamily: serif, fontSize: 'clamp(38px,7vw,62px)', fontWeight: 600, lineHeight: 1.05, margin: 0, letterSpacing: '-0.01em' }}>
               Divorced.

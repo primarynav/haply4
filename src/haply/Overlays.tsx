@@ -174,7 +174,7 @@ export function ChatDialog({ h }: { h: H }) {
           <img src={p.image} alt={p.name} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
           <div style={{ flex: 1 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
-              {p.name}, {p.age}
+              {p.name}{p.age ? `, ${p.age}` : ''}
             </h3>
             <p style={{ fontSize: 12, color: '#78716C', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
               <TrustChip verified={p.divorceVerified} demo={p.demo} size={11} />
@@ -255,7 +255,7 @@ export function DetailModal({ h }: { h: H }) {
             <Ic name="close" size={22} />
           </button>
           <h2 style={{ fontFamily: serif, fontSize: 28, fontWeight: 600, margin: 0 }}>
-            {p.name}, {p.age}
+            {p.name}{p.age ? `, ${p.age}` : ''}
           </h2>
           <p style={{ color: '#57534E', margin: '4px 0 0', fontSize: 15, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Ic name="location_on" size={16} />
@@ -263,7 +263,7 @@ export function DetailModal({ h }: { h: H }) {
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 0' }}>
             <TrustChip verified={p.divorceVerified} demo={p.demo} size={13} />
-            <span style={{ color: '#78716C', fontSize: 13 }}>Divorced {p.divorceYear} (self-reported)</span>
+            {p.divorceYear > 0 && <span style={{ color: '#78716C', fontSize: 13 }}>Divorced {p.divorceYear} (self-reported)</span>}
           </div>
           {/* Stated where the badge is actually relied on, not only in the Terms:
               a member deciding whether to meet someone should see the limits of

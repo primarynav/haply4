@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import './styles.css';
-import { CHAT_REPLIES, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
+import { CHAT_REPLIES, DEMO_PROFILES_ENABLED, INVITE_LINK, LIKES_BACK, POSTS, PROFILES, violatesLanguagePolicy, type Post, type Profile } from './data';
 import { absorbMessage, buildIntros, countMatches, describeFilters, emptyProfile, matchmakerReply, profileReady, type Intro, type UserProfile } from './matchmaker';
 import {
   acceptTerms,
@@ -9,7 +9,14 @@ import {
   createComment,
   createPost,
   fetchComments,
+  fetchDiscoverPool,
   fetchLatestVerification,
+  fetchMatches,
+  fetchMessages,
+  fetchMyLikeActions,
+  markMatchRead,
+  sendLikeAction,
+  sendMessage,
   fetchPosts,
   joinWaitlist,
   loadProfile,
@@ -27,11 +34,12 @@ import {
   type DbUser,
   type DivorceVerificationFields,
   type JourneyInfo,
+  type MatchSummary,
   type VerificationInfo,
   type VerificationSubmission
 } from './backend';
 import { datingAvailableForStage, type CoParenting, type DivorceStage } from './journey';
-import { metroForPostal, type LaunchMetro } from './launchMarkets';
+import { METRO_OUTSIDE, metroForPostal, type LaunchMetro } from './launchMarkets';
 import { captureReferral } from './referral';
 import { aiTurn } from './aiMatchmaker';
 import type { ProfileTarget } from './avatars';
@@ -42,12 +50,20 @@ import { CommunityPublic } from './CommunityPublic';
 import { CommunityProfilePage } from './CommunityProfile';
 import { Dashboard } from './Dashboard';
 import { AuthModal, ChatDialog, DetailModal, LegalModal, MatchPop, Toast } from './Overlays';
+import { IS_STAGING_BACKEND } from './supabaseClient';
 
 export type Page = 'home' | 'get-started' | 'community' | 'dashboard' | 'community-profile' | 'switch';
 export type CommSort = 'top' | 'new';
 export type DashTab = 'community' | 'discover' | 'ai-match' | 'matches' | 'messages' | 'profile';
 export type Intent = '' | 'community' | 'dating' | 'both';
 export type AuthType = 'login' | 'signup';
+/**
+ * How the Discover pool got to its current contents, so the empty grid can say
+ * which kind of empty it is: still loading, failed to load, or genuinely nobody
+ * here yet. 'idle' means we haven't asked — the member isn't verified, so there
+ * is nothing to ask for.
+ */
+export type PoolState = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface User {
   name: string;
@@ -125,6 +141,8 @@ export interface H {
   setGsWaitlistEmail: (v: string) => void;
   gsWaitlistDone: boolean;
   gsWaitlistSubmit: () => void;
+  /** Create the account anyway — community is national, only dating waits. */
+  gsJoinAnyway: () => void;
   gsBackToPostal: () => void;
 
   /** Metro, stage and co-parenting for the signed-in member. */
@@ -133,6 +151,12 @@ export interface H {
   setStage: (s: DivorceStage) => void;
   /** Whether the dating half of the product is open to this member. */
   datingAvailable: boolean;
+  /**
+   * Why dating is closed, when it is. Stage and location are different answers
+   * and the member deserves the real one — telling someone in Boise that their
+   * divorce stage is the problem would be false.
+   */
+  datingBlockedBy: 'stage' | 'location' | null;
 
   authOpen: boolean;
   authType: AuthType;
@@ -161,23 +185,39 @@ export interface H {
   turnDatingOn: () => void;
   toggleDating: () => void;
 
-  liked: number[];
-  hidden: number[];
-  matched: number[];
-  doLike: (id: number) => void;
-  passProfile: (id: number) => void;
-  openChat: (id: number) => void;
+  /**
+   * Every member this account may see in Discover, loaded from the database.
+   * Empty until a verified member signs in — the app ships with no people in it.
+   */
+  pool: Profile[];
+  poolState: PoolState;
+  reloadPool: () => void;
+
+  liked: string[];
+  hidden: string[];
+  matched: string[];
+  /**
+   * The people this member has actually matched with.
+   *
+   * Not derivable from `pool` any more: the discover feed deliberately excludes
+   * anyone you have already liked, so a match is never in it. This is the only
+   * source of a matched member's name and card.
+   */
+  matchedProfiles: Profile[];
+  doLike: (id: string) => void;
+  passProfile: (id: string) => void;
+  openChat: (id: string) => void;
   startOver: () => void;
 
-  detailId: number | null;
-  openDetail: (id: number) => void;
+  detailId: string | null;
+  openDetail: (id: string) => void;
   closeDetail: () => void;
 
-  chatId: number | null;
+  chatId: string | null;
   chatDraft: string;
   setChatDraft: (v: string) => void;
   chatTyping: boolean;
-  convos: Record<number, ChatMsg[]>;
+  convos: Record<string, ChatMsg[]>;
   sendChat: () => void;
   closeChat: () => void;
 
@@ -190,7 +230,7 @@ export interface H {
   userProfile: UserProfile;
   seeking?: string;
 
-  matchPopId: number | null;
+  matchPopId: string | null;
   closeMatchPop: () => void;
 
   commCat: string;
@@ -221,7 +261,7 @@ export interface H {
   appealChat: (verificationId: string, messages: AppealChatMessage[]) => Promise<{ reply?: string; escalated?: boolean; error?: string }>;
   requestHumanReview: (verificationId: string) => Promise<{ escalated?: boolean; error?: string }>;
 
-  prof: (id: number) => Profile | undefined;
+  prof: (id: string) => Profile | undefined;
 }
 
 function scrollBottom(elId: string) {
@@ -259,10 +299,14 @@ export default function HaplyApp() {
   const [gsMetro, setGsMetro] = useState<LaunchMetro | null>(null);
   const [journey, setJourney] = useState<JourneyInfo>({ metro: null, stage: null, coParenting: {} });
 
-  const [liked, setLiked] = useState<number[]>([1, 3]);
-  const [hidden, setHidden] = useState<number[]>([]);
-  const [matched, setMatched] = useState<number[]>([1, 3]);
-  const [convos, setConvos] = useState<Record<number, ChatMsg[]>>({
+  // Likes, matches and conversations are still local demo state driven by
+  // CHAT_REPLIES, so they only make sense against the demo profiles they key
+  // off. A real account starts empty rather than opening on two matches and two
+  // conversations it never had.
+  const [liked, setLiked] = useState<string[]>(DEMO_PROFILES_ENABLED ? ['1', '3'] : []);
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [matched, setMatched] = useState<string[]>(DEMO_PROFILES_ENABLED ? ['1', '3'] : []);
+  const [convos, setConvos] = useState<Record<string, ChatMsg[]>>(DEMO_PROFILES_ENABLED ? {
     1: [
       { from: 'them', text: "Hey! Thanks for the match. How's your day going?", time: '2h ago' },
       { from: 'me', text: "Hi! It's going great, thanks! Love your profile, you seem really interesting.", time: '1h ago' }
@@ -271,12 +315,12 @@ export default function HaplyApp() {
       { from: 'me', text: 'Hi there! Your art sounds amazing. Would love to hear more about it!', time: '4h ago' },
       { from: 'them', text: "Thank you! I'd love to share. Do you have any creative hobbies?", time: '3h ago' }
     ]
-  });
-  const [chatId, setChatId] = useState<number | null>(null);
+  } : {});
+  const [chatId, setChatId] = useState<string | null>(null);
   const [chatDraft, setChatDraft] = useState('');
   const [chatTyping, setChatTyping] = useState(false);
-  const replyIdx = useRef<Record<number, number>>({});
-  const chatIdRef = useRef<number | null>(null);
+  const replyIdx = useRef<Record<string, number>>({});
+  const chatIdRef = useRef<string | null>(null);
   chatIdRef.current = chatId;
 
   const [aiMsgs, setAiMsgs] = useState<AiMsg[]>([
@@ -316,8 +360,20 @@ export default function HaplyApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, datingOn]);
 
-  const [detailId, setDetailId] = useState<number | null>(null);
-  const [matchPopId, setMatchPopId] = useState<number | null>(null);
+  /**
+   * Dating needs two things: a stage where dating makes sense, and a location
+   * dating has reached. Community has neither requirement — it works anywhere,
+   * so signup is national.
+   *
+   * Both are closed only by an answer we actually have. A blank stage or a
+   * metro we never determined leaves dating open; only a stage that says "not
+   * yet", or a postal code already checked and found outside, closes it.
+   */
+  const datingOpen = (stage: DivorceStage | null, metro: string | null) =>
+    datingAvailableForStage(stage) && metro !== METRO_OUTSIDE;
+
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [matchPopId, setMatchPopId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastT = useRef<ReturnType<typeof setTimeout>>();
 
@@ -333,6 +389,57 @@ export default function HaplyApp() {
   const [verification, setVerification] = useState<VerificationInfo>({ divorceVerified: false, divorceStatus: null, divorceVerifiedAt: null });
   const [latestVerification, setLatestVerification] = useState<VerificationSubmission | null>(null);
   const [profileReturnPage, setProfileReturnPage] = useState<Page>('community');
+
+  /**
+   * The member pool behind Discover and the matchmaker.
+   *
+   * Starts as PROFILES, which is empty unless VITE_DEMO_PROFILES=1, and fills
+   * from the database once a verified member signs in. Demo profiles stay
+   * appended behind the real ones when that flag is on, so a development build
+   * still has a populated grid without ever putting invented people in front of
+   * a real member in production.
+   */
+  const [pool, setPool] = useState<Profile[]>(PROFILES);
+  const [poolState, setPoolState] = useState<PoolState>('idle');
+  /** Live matches from the database. Empty for a demo-only build. */
+  const [matchRows, setMatchRows] = useState<MatchSummary[]>([]);
+  const [poolNonce, setPoolNonce] = useState(0);
+  const reloadPool = () => setPoolNonce((n) => n + 1);
+
+  const canBrowse = !!user?.id && verification.divorceVerified;
+  useEffect(() => {
+    // Browsing requires a verified account: get_discover_feed returns nothing to
+    // anyone else, so asking before then would just be a guaranteed empty read.
+    if (!canBrowse) {
+      setPool(PROFILES);
+      setPoolState('idle');
+      return;
+    }
+    let live = true;
+    setPoolState('loading');
+    void fetchDiscoverPool().then((members) => {
+      if (!live) return;
+      if (!members) {
+        setPoolState('error');
+        return;
+      }
+      setPool([...members, ...PROFILES]);
+      setPoolState('ready');
+    });
+    // Who this member has already answered, and who they matched with. The feed
+    // excludes both server-side; these keep the buttons and tabs in step.
+    void fetchMyLikeActions().then((mine) => {
+      if (!live || !mine) return;
+      setLiked((l) => [...new Set([...l, ...mine.liked])]);
+      setHidden((h2) => [...new Set([...h2, ...mine.passed])]);
+    });
+    void fetchMatches().then((rows) => {
+      if (live && rows) setMatchRows(rows);
+    });
+    return () => {
+      live = false;
+    };
+  }, [canBrowse, poolNonce]);
 
   useEffect(() => () => clearTimeout(toastT.current), []);
 
@@ -352,31 +459,79 @@ export default function HaplyApp() {
     if (extraTab) setDashTab(extraTab);
   };
 
-  const prof = (id: number) => PROFILES.find((p) => p.id === id);
+  const matchedProfiles = matchRows.map((m) => m.profile);
+  // Demo matches live in local state; real ones come back from the database.
+  const matchedIds = [...new Set([...matched, ...matchRows.map((m) => m.profile.id)])];
+  /** A match is never in the discover feed, so look there too. */
+  const prof = (id: string) => pool.find((p) => p.id === id) ?? matchedProfiles.find((p) => p.id === id);
+  /**
+   * Demo profiles keep the old local-only behaviour. They have no row in the
+   * database, so writing a like for one would fail a foreign key; everything
+   * about them stays in React state, exactly as before.
+   */
+  const isDemo = (id: string) => pool.find((p) => p.id === id)?.demo === true;
+  const matchIdFor = (profileId: string) => matchRows.find((m) => m.profile.id === profileId)?.matchId;
+
+  const loadConversation = (profileId: string) => {
+    const matchId = matchIdFor(profileId);
+    if (!matchId) return;
+    void fetchMessages(matchId).then((msgs) => {
+      if (!msgs) return;
+      const myId = userRef.current?.id;
+      setConvos((c) => ({
+        ...c,
+        [profileId]: msgs.map((m) => ({
+          from: m.senderId === myId ? 'me' : 'them',
+          text: m.body,
+          time: new Date(m.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+        }))
+      }));
+    });
+    void markMatchRead(matchId).then(() => {
+      setMatchRows((rows) => rows.map((r) => (r.matchId === matchId ? { ...r, unread: 0 } : r)));
+    });
+  };
 
   const scrollAnchor = (id: string) => {
     const el = document.getElementById(id);
     if (el) window.scrollTo({ top: el.offsetTop - 80, behavior: 'smooth' });
   };
 
-  const doLike = (id: number) => {
+  const doLike = (id: string) => {
     if (liked.includes(id)) return;
     setLiked((l) => [...l, id]);
-    if (LIKES_BACK.includes(id) && !matched.includes(id)) {
-      setMatched((m) => [...m, id]);
-      setConvos((c) => ({ ...c, [id]: c[id] || [] }));
-      setMatchPopId(id);
+
+    if (isDemo(id)) {
+      if (LIKES_BACK.includes(id) && !matchedIds.includes(id)) {
+        setMatched((m) => [...m, id]);
+        setConvos((c) => ({ ...c, [id]: c[id] || [] }));
+        setMatchPopId(id);
+      }
+      return;
     }
+
+    // A real like is written before we know whether it matched — only the
+    // server can tell us, since the other person's like is not ours to read.
+    void sendLikeAction(id, 'like').then((res) => {
+      if (!res) {
+        setLiked((l) => l.filter((x) => x !== id));
+        showToast("That didn't save — please try again.");
+        return;
+      }
+      setMatchRows(res.matches);
+      if (res.newMatch) setMatchPopId(id);
+    });
   };
 
-  const openChat = (id: number) => {
-    if (matched.includes(id)) {
-      setChatId(id);
-      setDetailId(null);
-      setMatchPopId(null);
-    } else {
+  const openChat = (id: string) => {
+    if (!matchedIds.includes(id)) {
       showToast("You can only message people you've matched with");
+      return;
     }
+    setChatId(id);
+    setDetailId(null);
+    setMatchPopId(null);
+    if (!isDemo(id)) loadConversation(id);
   };
 
   const sendChat = () => {
@@ -389,18 +544,37 @@ export default function HaplyApp() {
     }
     setConvos((c) => ({ ...c, [id]: [...(c[id] || []), { from: 'me', text, time: 'Just now' }] }));
     setChatDraft('');
-    setChatTyping(true);
     scrollBottom('chatScroll');
+
+    if (!isDemo(id)) {
+      // A real conversation with a real person. Nothing replies on a timer, and
+      // nothing should pretend to: the message is sent, and the other member
+      // answers when they answer.
+      const matchId = matchIdFor(id);
+      if (!matchId) return;
+      void sendMessage(matchId, text).then((ok) => {
+        if (!ok) {
+          showToast("That message didn't send — please try again.");
+          return;
+        }
+        void fetchMatches().then((rows) => rows && setMatchRows(rows));
+      });
+      return;
+    }
+
+    // Demo profiles only: canned replies so the UI can be shown without an
+    // account. Never reachable for a real member.
+    setChatTyping(true);
     setTimeout(() => {
       if (chatIdRef.current !== id) {
         setChatTyping(false);
         return;
       }
-      const pool = CHAT_REPLIES[id] || ["That's so great to hear!", 'Tell me more about yourself 😊'];
+      const replies = CHAT_REPLIES[id] || ["That's so great to hear!", 'Tell me more about yourself 😊'];
       const idx = replyIdx.current[id] || 0;
       replyIdx.current[id] = idx + 1;
       setChatTyping(false);
-      setConvos((c) => ({ ...c, [id]: [...(c[id] || []), { from: 'them', text: pool[idx % pool.length], time: 'Just now' }] }));
+      setConvos((c) => ({ ...c, [id]: [...(c[id] || []), { from: 'them', text: replies[idx % replies.length], time: 'Just now' }] }));
       scrollBottom('chatScroll');
     }, 1500);
   };
@@ -429,9 +603,9 @@ export default function HaplyApp() {
       setUserProfile(profile);
       // Snapshot results against the profile THIS turn produced. Deriving them at
       // render time instead would rewrite the whole history on every new message.
-      const intros = ready ? buildIntros(profile, gsLooking, 8) : undefined;
+      const intros = ready ? buildIntros(pool, profile, gsLooking, 8) : undefined;
       const filters = ready ? describeFilters(profile, gsLooking) : undefined;
-      const total = ready ? countMatches(profile, gsLooking) : undefined;
+      const total = ready ? countMatches(pool, profile, gsLooking) : undefined;
       // Keep a beat of "typing" so a fast reply doesn't snap in unnaturally.
       setTimeout(
         () => {
@@ -484,15 +658,23 @@ export default function HaplyApp() {
       const stage: DivorceStage | null = gsStage || null;
       // Dating only opens for someone who said they're ready for it, whatever
       // they picked as their intent — the stage answer is the honest one.
-      const wantsDating = intent !== 'community' && datingAvailableForStage(stage);
+      // Dating needs a launch metro as well as a workable stage. Someone who
+      // signed up for dating from outside one still gets an account — community
+      // is national — so record what they came for, which is also how we learn
+      // where the next metro should be.
+      // Record which kind of "no metro" this is: checked and outside, versus
+      // never asked. Only the first should ever close dating.
+      const metro = gsMetro?.slug ?? (gsPostal ? METRO_OUTSIDE : null);
+      const wantsDating = intent !== 'community' && datingOpen(stage, metro);
+      if (intent !== 'community' && metro === METRO_OUTSIDE) void joinWaitlist(u.email, gsPostal, 'dating');
       setDatingOn(wantsDating);
       setVerification({ divorceVerified: false, divorceStatus: null, divorceVerifiedAt: null });
-      setJourney({ metro: gsMetro?.slug ?? null, stage, coParenting: {} });
+      setJourney({ metro, stage, coParenting: {} });
       setDashTab(wantsDating && intent === 'dating' ? 'discover' : 'community');
       void saveProfile(u.id, u.name, userProfile, wantsDating, {
         intent: intent || undefined,
         postal: gsPostal || undefined,
-        metro: gsMetro?.slug ?? null,
+        metro,
         stage
       });
       if (opts.isNew) void acceptTerms(u.id, TERMS_VERSION);
@@ -630,13 +812,18 @@ export default function HaplyApp() {
     },
     gsErr,
     gsContinue: () => {
-      const showDating = gsIntent === 'dating' || gsIntent === 'both';
+      const wantsDating = gsIntent === 'dating' || gsIntent === 'both';
+      // The wizard only asks who you are and who you'd like to meet once the
+      // stage says dating is on the table. Requiring answers it never asked for
+      // left "Dating" plus "Just separated" stuck on Continue with nothing on
+      // screen to fix — the condition has to match what GetStarted renders.
+      const asksDatingQuestions = wantsDating && gsStage === 'ready';
       const metro = metroForPostal(gsPostal);
       const err: GsErr = {
         intent: !gsIntent,
         stage: !gsStage,
-        gender: showDating && !gsGender,
-        looking: showDating && !gsLooking,
+        gender: asksDatingQuestions && !gsGender,
+        looking: asksDatingQuestions && !gsLooking,
         postal: !metroForPostal(gsPostal) && !/^\d{5}(\d{4})?$/.test(gsPostal.replace(/\s|-/g, '')),
         confirm: !gsConfirm
       };
@@ -644,13 +831,17 @@ export default function HaplyApp() {
         setGsErr(err);
         return;
       }
-      // Outside the launch metros we don't create an account we can't serve —
-      // an empty city is a worse first impression than an honest waitlist.
-      if (!metro) {
+      setGsMetro(metro);
+      // Community works anywhere, so a postal code outside the launch metros is
+      // no longer a reason to refuse an account. Only dating is metro-gated, so
+      // only someone who came for dating needs to hear about it first.
+      // Keyed off intent, not off the questions above: someone who came to date
+      // deserves to hear that dating isn't open near them whatever stage
+      // they're at.
+      if (!metro && wantsDating) {
         setGsOutOfArea(true);
         return;
       }
-      setGsMetro(metro);
       setAuthOpen(true);
       setAuthType('signup');
       setAuthError('');
@@ -672,17 +863,24 @@ export default function HaplyApp() {
         else showToast("Couldn't save that just now — please try again.");
       });
     },
+    gsJoinAnyway: () => {
+      setGsOutOfArea(false);
+      setAuthOpen(true);
+      setAuthType('signup');
+      setAuthError('');
+    },
     gsBackToPostal: () => {
       setGsOutOfArea(false);
       setGsWaitlistDone(false);
     },
 
     journey,
-    datingAvailable: datingAvailableForStage(journey.stage),
+    datingAvailable: datingOpen(journey.stage, journey.metro),
+    datingBlockedBy: datingOpen(journey.stage, journey.metro) ? null : (!datingAvailableForStage(journey.stage) ? 'stage' : 'location'),
     setStage: (s) => {
       setJourney((j) => ({ ...j, stage: s }));
-      if (!datingAvailableForStage(s)) setDatingOn(false);
-      if (user?.id) void saveProfile(user.id, user.name, userProfile, datingAvailableForStage(s) && datingOn, { stage: s });
+      if (!datingOpen(s, journey.metro)) setDatingOn(false);
+      if (user?.id) void saveProfile(user.id, user.name, userProfile, datingOpen(s, journey.metro) && datingOn, { stage: s });
     },
     saveCoParenting: (c) => {
       setJourney((j) => ({ ...j, coParenting: c }));
@@ -744,13 +942,16 @@ export default function HaplyApp() {
 
     liked,
     hidden,
-    matched,
+    matchedProfiles,
+    matched: matchedIds,
     doLike,
     passProfile: (id) => {
       setHidden((hd) => [...hd, id]);
       setDetailId(null);
       const p = prof(id);
       if (p) showToast(`${p.name} hidden from your feed`);
+      // Recorded so they stay hidden after a reload, not just this session.
+      if (!isDemo(id)) void sendLikeAction(id, 'pass');
     },
     openChat,
     startOver: () => {
@@ -889,7 +1090,10 @@ export default function HaplyApp() {
     appealChat: (verificationId, messages) => appealChat(verificationId, messages),
     requestHumanReview: (verificationId) => requestHumanReview(verificationId),
 
-    prof
+    prof,
+    pool,
+    poolState,
+    reloadPool
   };
 
   return (
@@ -905,6 +1109,15 @@ export default function HaplyApp() {
       {chatId !== null && <ChatDialog h={h} />}
       {detailId !== null && <DetailModal h={h} />}
       {matchPopId !== null && <MatchPop h={h} />}
+      {/* A staging build looks exactly like production, so say which one this
+          is. Only ever rendered when the backend is not the production one. */}
+      {IS_STAGING_BACKEND && (
+        <div
+          style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999, background: '#211D1A', color: '#FDE68A', fontSize: 12.5, fontWeight: 600, textAlign: 'center', padding: '6px 12px', letterSpacing: '0.02em' }}
+        >
+          Staging — separate test database. Nothing here is real.
+        </div>
+      )}
       {toast && <Toast text={toast} />}
     </>
   );

@@ -1,4 +1,4 @@
-import { PROFILES, type Profile } from './data';
+import type { Profile } from './data';
 import type { CustodySchedule, WantsMoreKids } from './journey';
 
 /** Discover's search criteria, in the spirit of a classic dating-site filter panel. */
@@ -47,10 +47,16 @@ export const emptyFilters = (): DiscoverFilters => ({
   wantsMoreKids: 'any'
 });
 
-/** Interest labels present in the pool, most common first. */
-export function interestOptions(limit = 20): string[] {
+/**
+ * Interest labels present in the pool, most common first.
+ *
+ * Derived from the members actually there rather than a fixed vocabulary, so
+ * the chips never offer a filter that matches nobody. An empty pool yields no
+ * chips, which is correct — there is nothing to filter yet.
+ */
+export function interestOptions(pool: Profile[], limit = 20): string[] {
   const counts = new Map<string, number>();
-  for (const p of PROFILES) for (const i of p.interests) counts.set(i, (counts.get(i) ?? 0) + 1);
+  for (const p of pool) for (const i of p.interests) counts.set(i, (counts.get(i) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([label]) => label);
 }
 
@@ -70,12 +76,17 @@ const COLLEGE = /bachelor|associate|nursing \(rn\)|mba|master|phd|jd|mfa/i;
 function passesEducation(p: Profile, want: DiscoverFilters['education']): boolean {
   if (want === 'any') return true;
   const e = p.education ?? '';
+  // Nothing in the database records education, so every real member leaves this
+  // blank. Excluding blanks would quietly empty the grid for anyone who touches
+  // the filter — unknown is not disqualifying, same rule as everywhere else.
+  if (!e) return true;
   return want === 'grad' ? GRAD.test(e) : COLLEGE.test(e);
 }
 
 function passesDrinking(p: Profile, want: DiscoverFilters['drinking']): boolean {
   if (want === 'any') return true;
   const d = (p.drinking ?? '').toLowerCase();
+  if (!d) return true; // never stated — see passesEducation
   if (want === 'never') return d === 'never';
   return d !== 'regularly';
 }
@@ -90,15 +101,16 @@ export interface Scored {
  * nearest matches lead. Profiles missing a field are only excluded when a filter
  * actually constrains that field — unknown is not treated as disqualifying.
  */
-export function applyFilters(f: DiscoverFilters, hidden: number[] = []): Scored[] {
+export function applyFilters(pool: Profile[], f: DiscoverFilters, hidden: string[] = []): Scored[] {
   const hide = new Set(hidden);
   const out: Scored[] = [];
 
-  for (const p of PROFILES) {
+  for (const p of pool) {
     if (hide.has(p.id)) continue;
     if (f.gender === 'women' && p.gender !== 'woman') continue;
     if (f.gender === 'men' && p.gender !== 'man') continue;
-    if (p.age < f.minAge || p.age > f.maxAge) continue;
+    // age 0 means they never stated one; don't hide them for a blank field.
+    if (p.age && (p.age < f.minAge || p.age > f.maxAge)) continue;
 
     const isParent = !!p.children && p.children !== 'None' && !/^no\b/i.test(p.children);
     if (f.kids === 'has' && !isParent) continue;
@@ -140,7 +152,8 @@ export function applyFilters(f: DiscoverFilters, hidden: number[] = []): Scored[
  */
 export function filtersFromProfile(
   p: { seeking?: string; minAge?: number; maxAge?: number; city?: string; interests: string[]; prefKidsOk?: boolean },
-  prev: DiscoverFilters
+  prev: DiscoverFilters,
+  pool: Profile[]
 ): DiscoverFilters {
   const next: DiscoverFilters = { ...prev };
   if (p.seeking === 'women' || p.seeking === 'men' || p.seeking === 'anyone') next.gender = p.seeking;
@@ -150,7 +163,7 @@ export function filtersFromProfile(
 
   if (p.city) {
     const want = p.city.split(',')[0].trim().toLowerCase();
-    const hit = PROFILES.find((x) => x.location.toLowerCase().startsWith(want) && x.lat !== undefined);
+    const hit = pool.find((x) => x.location.toLowerCase().startsWith(want) && x.lat !== undefined);
     if (hit) {
       next.originLabel = hit.location;
       next.originLat = hit.lat;
@@ -178,7 +191,7 @@ const RELAX_LABELS: Record<string, string> = {
  * When nothing matches, work out which single filter is doing the excluding, so
  * the empty state can name it instead of just saying "no results".
  */
-export function suggestRelax(f: DiscoverFilters, hidden: number[] = []): { label: string; count: number } | null {
+export function suggestRelax(pool: Profile[], f: DiscoverFilters, hidden: string[] = []): { label: string; count: number } | null {
   const d = emptyFilters();
   const variants: [string, DiscoverFilters][] = [];
   if (f.gender !== d.gender) variants.push(['gender', { ...f, gender: d.gender }]);
@@ -194,7 +207,7 @@ export function suggestRelax(f: DiscoverFilters, hidden: number[] = []): { label
 
   let best: { label: string; count: number } | null = null;
   for (const [key, variant] of variants) {
-    const n = applyFilters(variant, hidden).length;
+    const n = applyFilters(pool, variant, hidden).length;
     if (n > 0 && (!best || n > best.count)) best = { label: RELAX_LABELS[key], count: n };
   }
   return best;
