@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENTS, type Profile } from './data';
 import { AdminReview } from './AdminReview';
+import { LikesInbox } from './LikesInbox';
 
 /**
  * Photos are blurred for members who have not verified their own divorce.
@@ -1045,6 +1046,10 @@ function MatchesTab({ h }: { h: H }) {
   // A matched member is never in the discover feed, so the pool alone is blind.
   const matchList = [...h.matchedProfiles, ...h.pool.filter((p) => p.demo && h.matched.includes(p.id))];
   return (
+    <>
+    {/* People who liked you sit above your matches: it is the same screen's
+        question — who is interested — and the one that converts. */}
+    <LikesInbox h={h} />
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18 }}>
       <div style={{ padding: '24px 24px 0' }}>
         <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 600, margin: 0 }}>Your matches ({matchList.length})</h2>
@@ -1071,6 +1076,7 @@ function MatchesTab({ h }: { h: H }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
