@@ -1,5 +1,5 @@
 import type { H } from './HaplyApp';
-import { PRIVACY_POLICY, TERMS_OF_SERVICE } from './legalContent';
+import { LEGAL_LAST_UPDATED, PRIVACY_POLICY, TERMS_OF_SERVICE } from './legalContent';
 import { Ic, Logo, TrustChip, serif } from './ui';
 
 const inputStyle: React.CSSProperties = { width: '100%', boxSizing: 'border-box', background: '#FAF7F4', border: '1.5px solid transparent', borderRadius: 12, padding: '12px 14px', fontSize: 15, outline: 'none' };
@@ -149,7 +149,9 @@ export function LegalModal({ h }: { h: H }) {
           </button>
         </div>
         <h2 style={{ fontFamily: serif, fontSize: 24, fontWeight: 600, margin: '0 0 4px' }}>{title}</h2>
-        <p style={{ fontSize: 12, color: '#A8A29E', margin: '0 0 20px' }}>Haply · divorce and legal-separation community</p>
+        <p style={{ fontSize: 12, color: '#A8A29E', margin: '0 0 20px' }}>
+          Haply · divorce and legal-separation community · last updated {LEGAL_LAST_UPDATED}
+        </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {sections.map((s) => (
             <div key={s.heading}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { EVENTS, GROUPS, HERO_SLIDES } from './data';
 import type { H } from './HaplyApp';
 import { metroListSentence } from './launchMarkets';
+import { SUPPORT_EMAIL } from './legalContent';
 import { Ic, Logo, serif, usePrefersReducedMotion } from './ui';
 
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,4vw,32px)' };
@@ -30,7 +31,7 @@ export function Landing({ h }: { h: H }) {
             <Logo size={30} color="#e11d48" />
             <div>
               <h1 style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.1 }}>Haply</h1>
-              <p style={{ fontSize: 11, color: '#78716C', margin: 0, letterSpacing: '.02em' }}>The divorced dating community</p>
+              <p style={{ fontSize: 11, color: '#78716C', margin: 0, letterSpacing: '.02em' }}>Community for divorced people</p>
             </div>
           </div>
           <nav style={{ display: 'flex', alignItems: 'center', gap: 28 }} data-rs-hide="1">
@@ -384,7 +385,9 @@ export function Landing({ h }: { h: H }) {
                 <Logo size={26} color="#fb7185" />
                 <span style={{ fontFamily: serif, fontSize: 20, fontWeight: 700 }}>Haply</span>
               </div>
-              <p style={{ color: '#A8A29E', margin: 0, fontSize: 14, lineHeight: 1.6, maxWidth: 300 }}>The divorced dating community. Real people, real support, and second chances — free to join, for people 21 and over.</p>
+              <p style={{ color: '#A8A29E', margin: 0, fontSize: 14, lineHeight: 1.6, maxWidth: 300 }}>
+                A community for people who are divorced or legally separated. Free to join anywhere in the US, for people 21 and over — and dating, when you want it, in {metroListSentence()}.
+              </p>
             </div>
             <FooterCol
               title="Community"
@@ -396,20 +399,28 @@ export function Landing({ h }: { h: H }) {
               ]}
             />
             <FooterCol
+              title="Guides"
+              links={[
+                ['Is he really divorced?', '/guides/is-he-really-divorced'],
+                ['Separated but not divorced', '/guides/separated-but-not-divorced'],
+                ['Dating after divorce at 50', '/guides/dating-after-divorce-at-50'],
+                ['All guides', '/guides/']
+              ]}
+            />
+            <FooterCol
               title="Dating"
               links={[
                 ['Trust & privacy', () => h.scrollAnchor('trust-anchor')],
                 ['How dating works', () => h.scrollAnchor('dating-anchor')],
-                ['Success stories', h.stubPage]
+                ['Coming from SilverSingles?', '/switch']
               ]}
             />
             <FooterCol
               title="Support"
               links={[
-                ['Help center', h.stubPage],
-                ['Safety', h.stubPage],
-                ['Privacy', h.stubPage],
-                ['Contact', h.stubPage]
+                ['Contact', `mailto:${SUPPORT_EMAIL}`],
+                ['Privacy Policy', '/privacy'],
+                ['Terms of Service', '/terms']
               ]}
             />
           </div>
@@ -509,16 +520,34 @@ function HeroShowcase() {
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: [string, () => void][] }) {
+/**
+ * A footer link is either an in-app action or a real URL.
+ *
+ * The URL form matters more than it looks: the guides and the legal pages are
+ * static HTML, and a crawler only finds them if something links to them with an
+ * `href`. A span with an onClick is invisible to every crawler and to anyone
+ * middle-clicking to open a tab, so anything that has a real address gets a
+ * real anchor.
+ */
+type FooterLink = [label: string, target: (() => void) | string];
+
+function FooterCol({ title, links }: { title: string; links: FooterLink[] }) {
+  const style: React.CSSProperties = { cursor: 'pointer', color: 'inherit', textDecoration: 'none' };
   return (
     <div>
       <h4 style={{ fontWeight: 600, margin: '0 0 14px', fontSize: 15 }}>{title}</h4>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, color: '#A8A29E', fontSize: 14 }}>
-        {links.map(([label, fn]) => (
-          <span key={label} onClick={fn} className="hvc-rose300" style={{ cursor: 'pointer' }}>
-            {label}
-          </span>
-        ))}
+        {links.map(([label, target]) =>
+          typeof target === 'string' ? (
+            <a key={label} href={target} className="hvc-rose300" style={style}>
+              {label}
+            </a>
+          ) : (
+            <span key={label} onClick={target} className="hvc-rose300" style={style}>
+              {label}
+            </span>
+          )
+        )}
       </div>
     </div>
   );

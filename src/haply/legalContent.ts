@@ -33,6 +33,17 @@ export interface LegalSection {
  */
 export const SUPPORT_EMAIL = 'support@happilyeverafteragain.com';
 
+/**
+ * Shown on the public /terms and /privacy pages and in the in-app modal.
+ *
+ * Bump this whenever the text below changes materially — a policy with no date
+ * is one a reader cannot tell has been revised, and the Terms promise that
+ * material changes are "reflected in an updated version date". Keep it in step
+ * with TERMS_VERSION in backend.ts, which is what gets recorded against each
+ * member's acceptance.
+ */
+export const LEGAL_LAST_UPDATED = 'July 2026';
+
 export const TERMS_OF_SERVICE: LegalSection[] = [
   {
     heading: 'Who can use Haply',

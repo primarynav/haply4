@@ -379,6 +379,12 @@ export default function HaplyApp() {
     // Anyone reviewing this product — Facebook and Apple both require a
     // publicly reachable privacy policy before an OAuth app can go live — has
     // to be able to open one without knowing where the button is.
+    //
+    // In production these two rarely fire: the build emits static privacy.html
+    // and terms.html (scripts/staticPages.ts), and the host serves those first,
+    // which is deliberate — a reviewer's fetcher does not run React, so the
+    // policy must exist without it. This stays as the belt-and-braces path for
+    // dev, for `vite preview`, and for any host that resolves differently.
     if (/^\/privacy\/?$/i.test(window.location.pathname)) setLegalSection('privacy');
     if (/^\/terms\/?$/i.test(window.location.pathname)) setLegalSection('terms');
   }, []);

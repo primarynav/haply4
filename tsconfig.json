@@ -29,6 +29,11 @@
   // The live app only: main.tsx -> App.tsx -> haply/*. src/components/ is an
   // earlier UI that nothing imports any more and no longer compiles; including
   // it would bury real errors under ~140 dead-code ones.
-  "include": ["src/main.tsx", "src/App.tsx", "src/haply"],
+  // scripts/ is build-time code, not shipped to the browser, but it renders the
+  // legal pages from the same source the app uses — so a change to
+  // legalContent.ts that breaks the generator has to fail the build, not the
+  // deploy. Only the two files vite.config.ts actually imports; the .mjs
+  // seeding scripts are one-offs.
+  "include": ["src/main.tsx", "src/App.tsx", "src/haply", "scripts/staticPages.ts", "scripts/articles.ts"],
   "exclude": ["node_modules", "build", "supabase"]
 }
