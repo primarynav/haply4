@@ -448,6 +448,71 @@ export async function bypassVerification(status: ClaimedStatus = 'divorced'): Pr
 }
 
 /* ------------------------------------------------------------------ */
+/* Subscriptions                                                       */
+/* ------------------------------------------------------------------ */
+
+export interface Admirer {
+  id: string;
+  name: string;
+  age?: number;
+  city?: string;
+  intro?: string;
+  interests: string[];
+  likedAt: string;
+}
+
+/**
+ * How many people like you, and whether you may see who.
+ *
+ * The count is available to everyone — it names nobody, and it is the only
+ * honest way to say what a subscription would actually get you. The identities
+ * come from a separate call the database refuses unless you are subscribed.
+ */
+export async function fetchLikesInbox(): Promise<{ count: number; isSubscriber: boolean }> {
+  try {
+    const [countRes, subRes] = await Promise.all([
+      supabase.rpc('count_who_liked_me'),
+      supabase.rpc('viewer_is_subscriber')
+    ]);
+    return {
+      count: typeof countRes.data === 'number' ? countRes.data : 0,
+      isSubscriber: subRes.data === true
+    };
+  } catch {
+    return { count: 0, isSubscriber: false };
+  }
+}
+
+/** The admirers themselves. Returns an empty list for a non-subscriber. */
+export async function fetchWhoLikedMe(): Promise<Admirer[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_who_liked_me');
+    if (error || !data) return null;
+    return (data as AdmirerRow[]).map((r) => ({
+      id: r.liker_id,
+      name: r.name || 'Member',
+      age: r.age ?? undefined,
+      city: r.city ?? undefined,
+      intro: r.intro ?? undefined,
+      interests: r.interests ?? [],
+      likedAt: r.liked_at
+    }));
+  } catch {
+    return null;
+  }
+}
+
+interface AdmirerRow {
+  liker_id: string;
+  name: string | null;
+  age: number | null;
+  city: string | null;
+  intro: string | null;
+  interests: string[] | null;
+  liked_at: string;
+}
+
+/* ------------------------------------------------------------------ */
 /* Verification review (admins only)                                   */
 /* ------------------------------------------------------------------ */
 

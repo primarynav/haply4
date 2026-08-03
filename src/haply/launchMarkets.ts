@@ -10,8 +10,15 @@
  * their postal code goes on the waitlist, which is how demand rather than a
  * hunch picks the next one.
  *
- * The first ten are the largest US cities by population, followed by the three
- * the founding network actually started in. Adding one is a single entry here.
+ * One city, deliberately. Thirteen metros divided a member base of almost
+ * nobody into thirteen empty rooms; one city is the only way the first hundred
+ * members can actually meet each other. Chicago because that is where the
+ * founder is and can show up in person — the first hundred members of anything
+ * are recruited by hand, not acquired.
+ *
+ * Everywhere else still gets a full account: the community is national and
+ * works at ten members. Only dating waits, and the waitlist is what says where
+ * the second city should be. Adding one is a single entry here.
  */
 
 export interface LaunchMetro {
@@ -35,19 +42,7 @@ export interface LaunchMetro {
  * match, so a duplicate would silently assign people to the wrong city.
  */
 export const LAUNCH_METROS: LaunchMetro[] = [
-  { slug: 'new-york', label: 'New York, NY', short: 'New York', lat: 40.71, lng: -74.01, zipPrefixes: ['100', '101', '102', '103', '104', '110', '111', '112', '113', '114', '116'] },
-  { slug: 'los-angeles', label: 'Los Angeles, CA', short: 'Los Angeles', lat: 34.05, lng: -118.24, zipPrefixes: ['900', '901', '902', '903', '904', '905', '906', '907', '908', '910', '911', '912', '913', '914', '915', '916', '917', '918'] },
-  { slug: 'chicago', label: 'Chicago, IL', short: 'Chicago', lat: 41.88, lng: -87.63, zipPrefixes: ['600', '601', '602', '603', '604', '605', '606', '607', '608'] },
-  { slug: 'houston', label: 'Houston, TX', short: 'Houston', lat: 29.76, lng: -95.37, zipPrefixes: ['770', '771', '772', '773', '774', '775'] },
-  { slug: 'phoenix', label: 'Phoenix, AZ', short: 'Phoenix', lat: 33.45, lng: -112.07, zipPrefixes: ['850', '851', '852', '853'] },
-  { slug: 'philadelphia', label: 'Philadelphia, PA', short: 'Philadelphia', lat: 39.95, lng: -75.17, zipPrefixes: ['190', '191', '194'] },
-  { slug: 'san-antonio', label: 'San Antonio, TX', short: 'San Antonio', lat: 29.42, lng: -98.49, zipPrefixes: ['780', '781', '782'] },
-  { slug: 'san-diego', label: 'San Diego, CA', short: 'San Diego', lat: 32.72, lng: -117.16, zipPrefixes: ['919', '920', '921'] },
-  { slug: 'dallas', label: 'Dallas–Fort Worth, TX', short: 'Dallas', lat: 32.78, lng: -96.8, zipPrefixes: ['750', '751', '752', '753', '760', '761'] },
-  { slug: 'jacksonville', label: 'Jacksonville, FL', short: 'Jacksonville', lat: 30.33, lng: -81.66, zipPrefixes: ['320', '322'] },
-  { slug: 'seattle', label: 'Seattle–Tacoma, WA', short: 'Seattle', lat: 47.61, lng: -122.33, zipPrefixes: ['980', '981', '982', '983', '984', '985'] },
-  { slug: 'denver', label: 'Denver–Boulder, CO', short: 'Denver', lat: 39.74, lng: -104.99, zipPrefixes: ['800', '801', '802', '803', '804'] },
-  { slug: 'austin', label: 'Austin, TX', short: 'Austin', lat: 30.27, lng: -97.74, zipPrefixes: ['786', '787'] }
+  { slug: 'chicago', label: 'Chicago, IL', short: 'Chicago', lat: 41.88, lng: -87.63, zipPrefixes: ['600', '601', '602', '603', '604', '605', '606', '607', '608'] }
 ];
 
 // A repeated prefix silently sends people to whichever city is listed first, and

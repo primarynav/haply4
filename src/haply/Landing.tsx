@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { EVENTS, GROUPS, HERO_SLIDES } from './data';
 import type { H } from './HaplyApp';
-import { metroCountSentence } from './launchMarkets';
+import { metroListSentence } from './launchMarkets';
+import { SUPPORT_EMAIL } from './legalContent';
 import { Ic, Logo, serif, usePrefersReducedMotion } from './ui';
 
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,4vw,32px)' };
@@ -30,7 +31,7 @@ export function Landing({ h }: { h: H }) {
             <Logo size={30} color="#e11d48" />
             <div>
               <h1 style={{ fontFamily: serif, fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.1 }}>Haply</h1>
-              <p style={{ fontSize: 11, color: '#78716C', margin: 0, letterSpacing: '.02em' }}>The divorced dating community</p>
+              <p style={{ fontSize: 11, color: '#78716C', margin: 0, letterSpacing: '.02em' }}>Community for divorced people</p>
             </div>
           </div>
           <nav style={{ display: 'flex', alignItems: 'center', gap: 28 }} data-rs-hide="1">
@@ -64,27 +65,30 @@ export function Landing({ h }: { h: H }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', padding: '7px 14px', borderRadius: 999, alignSelf: 'flex-start', fontSize: 13, fontWeight: 600 }}>
               <Ic name="verified" fill size={15} />
-              Divorce verified · 21+ · {metroCountSentence()}
+              Divorce verified · 21+ · community open nationwide
             </div>
             <h1 style={{ fontFamily: serif, fontSize: 'clamp(38px,7vw,62px)', fontWeight: 600, lineHeight: 1.05, margin: 0, letterSpacing: '-0.01em' }}>
               Divorced.
               <br />
               Not done.
             </h1>
-            {/* Verification leads. It is the one concrete, checkable claim we can
-                make in a category where nobody believes anything — and the only
-                thing here a general dating app can't say. Wording stays inside
-                the limits set in the Terms: a reviewed document, nothing more. */}
+            {/* The community leads, because it is the part that works today.
+                A community is useful at ten members; dating needs hundreds in
+                one city, and promising it first to someone whose city is empty
+                is how a first visit becomes a last one. Verification comes
+                second — still the one concrete, checkable claim in a category
+                where nobody believes anything, and still worded inside the
+                limits set in the Terms: a reviewed document, nothing more. */}
             <p style={{ fontSize: 19, color: '#57534E', lineHeight: 1.65, margin: 0, maxWidth: 520 }}>
-              The dating community where members can <strong style={{ color: '#211D1A' }}>prove they're actually divorced</strong>. Upload your decree, get a
-              verified badge, and stop wondering. Join free for the community — date only when you're ready.
+              A place where people <strong style={{ color: '#211D1A' }}>get it</strong> — the co-parenting week from hell, the empty Saturday, starting over at 47.
+              Free, wherever you live. Members can also prove they're actually divorced, so when you're ready to date, you know who you're talking to.
             </p>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <button onClick={h.goGetStarted} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '15px 32px', fontSize: 17, fontWeight: 600, cursor: 'pointer', boxShadow: '0 8px 24px rgba(225,29,72,0.25)' }}>
                 Join the community — free
               </button>
               <button onClick={() => h.scrollAnchor('dating-anchor')} className="hvb-sand" style={{ background: 'transparent', color: '#211D1A', border: '1.5px solid #D6CCC2', borderRadius: 999, padding: '14px 28px', fontSize: 17, fontWeight: 500, cursor: 'pointer' }}>
-                I'm ready to date
+                Dating in {metroListSentence()}
               </button>
             </div>
             <p style={{ fontSize: 13, color: '#78716C', margin: 0, lineHeight: 1.6 }}>
@@ -381,7 +385,9 @@ export function Landing({ h }: { h: H }) {
                 <Logo size={26} color="#fb7185" />
                 <span style={{ fontFamily: serif, fontSize: 20, fontWeight: 700 }}>Haply</span>
               </div>
-              <p style={{ color: '#A8A29E', margin: 0, fontSize: 14, lineHeight: 1.6, maxWidth: 300 }}>The divorced dating community. Real people, real support, and second chances — free to join, for people 21 and over.</p>
+              <p style={{ color: '#A8A29E', margin: 0, fontSize: 14, lineHeight: 1.6, maxWidth: 300 }}>
+                A community for people who are divorced or legally separated. Free to join anywhere in the US, for people 21 and over — and dating, when you want it, in {metroListSentence()}.
+              </p>
             </div>
             <FooterCol
               title="Community"
@@ -393,20 +399,28 @@ export function Landing({ h }: { h: H }) {
               ]}
             />
             <FooterCol
+              title="Guides"
+              links={[
+                ['Is he really divorced?', '/guides/is-he-really-divorced'],
+                ['Separated but not divorced', '/guides/separated-but-not-divorced'],
+                ['Dating after divorce at 50', '/guides/dating-after-divorce-at-50'],
+                ['All guides', '/guides/']
+              ]}
+            />
+            <FooterCol
               title="Dating"
               links={[
                 ['Trust & privacy', () => h.scrollAnchor('trust-anchor')],
                 ['How dating works', () => h.scrollAnchor('dating-anchor')],
-                ['Success stories', h.stubPage]
+                ['Coming from SilverSingles?', '/switch']
               ]}
             />
             <FooterCol
               title="Support"
               links={[
-                ['Help center', h.stubPage],
-                ['Safety', h.stubPage],
-                ['Privacy', h.stubPage],
-                ['Contact', h.stubPage]
+                ['Contact', `mailto:${SUPPORT_EMAIL}`],
+                ['Privacy Policy', '/privacy'],
+                ['Terms of Service', '/terms']
               ]}
             />
           </div>
@@ -506,16 +520,34 @@ function HeroShowcase() {
   );
 }
 
-function FooterCol({ title, links }: { title: string; links: [string, () => void][] }) {
+/**
+ * A footer link is either an in-app action or a real URL.
+ *
+ * The URL form matters more than it looks: the guides and the legal pages are
+ * static HTML, and a crawler only finds them if something links to them with an
+ * `href`. A span with an onClick is invisible to every crawler and to anyone
+ * middle-clicking to open a tab, so anything that has a real address gets a
+ * real anchor.
+ */
+type FooterLink = [label: string, target: (() => void) | string];
+
+function FooterCol({ title, links }: { title: string; links: FooterLink[] }) {
+  const style: React.CSSProperties = { cursor: 'pointer', color: 'inherit', textDecoration: 'none' };
   return (
     <div>
       <h4 style={{ fontWeight: 600, margin: '0 0 14px', fontSize: 15 }}>{title}</h4>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, color: '#A8A29E', fontSize: 14 }}>
-        {links.map(([label, fn]) => (
-          <span key={label} onClick={fn} className="hvc-rose300" style={{ cursor: 'pointer' }}>
-            {label}
-          </span>
-        ))}
+        {links.map(([label, target]) =>
+          typeof target === 'string' ? (
+            <a key={label} href={target} className="hvc-rose300" style={style}>
+              {label}
+            </a>
+          ) : (
+            <span key={label} onClick={target} className="hvc-rose300" style={style}>
+              {label}
+            </span>
+          )
+        )}
       </div>
     </div>
   );

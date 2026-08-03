@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EVENTS, type Profile } from './data';
 import { AdminReview } from './AdminReview';
+import { LikesInbox } from './LikesInbox';
 
 /**
  * Photos are blurred for members who have not verified their own divorce.
@@ -542,8 +543,11 @@ function GridCard({ h, p, miles }: { h: H; p: Profile; miles?: number }) {
         </div>
       </div>
       <div style={{ padding: '11px 13px 13px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: 19, fontWeight: 700, lineHeight: 1.15, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
           {p.name}{p.age ? `, ${p.age}` : ''}
+          {/* Sample profiles must never be mistaken for vetted members, and
+              a real member here is verified by definition — the chip says which. */}
+          <TrustChip verified={p.divorceVerified} demo={p.demo} size={11} />
         </div>
         <div style={{ fontSize: 13, color: '#57534E', marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: 7 }}>
           <span>{isParent ? 'Has kids' : 'No kids'}</span>
@@ -855,6 +859,9 @@ function IntroCard({ h, intro }: { h: H; intro: Intro }) {
         {/* Name + age is the headline, the way price leads a listing card. */}
         <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.2 }}>
           {p.name}{p.age ? `, ${p.age}` : ''}
+          {/* Sample profiles must never be mistaken for vetted members, and
+              a real member here is verified by definition — the chip says which. */}
+          <TrustChip verified={p.divorceVerified} demo={p.demo} size={11} />
         </div>
         <div style={{ fontSize: 12.5, color: '#57534E', margin: '4px 0 0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <span>{p.children && p.children !== 'None' ? 'has kids' : 'no kids'}</span>
@@ -1039,6 +1046,10 @@ function MatchesTab({ h }: { h: H }) {
   // A matched member is never in the discover feed, so the pool alone is blind.
   const matchList = [...h.matchedProfiles, ...h.pool.filter((p) => p.demo && h.matched.includes(p.id))];
   return (
+    <>
+    {/* People who liked you sit above your matches: it is the same screen's
+        question — who is interested — and the one that converts. */}
+    <LikesInbox h={h} />
     <div style={{ background: '#fff', border: '1px solid #EDE6DF', borderRadius: 18 }}>
       <div style={{ padding: '24px 24px 0' }}>
         <h2 style={{ fontFamily: serif, fontSize: 22, fontWeight: 600, margin: 0 }}>Your matches ({matchList.length})</h2>
@@ -1065,6 +1076,7 @@ function MatchesTab({ h }: { h: H }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
