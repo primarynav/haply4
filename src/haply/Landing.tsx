@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { EVENTS, GROUPS, HERO_SLIDES } from './data';
 import type { H } from './HaplyApp';
-import { metroCountSentence } from './launchMarkets';
+import { metroListSentence } from './launchMarkets';
 import { Ic, Logo, serif, usePrefersReducedMotion } from './ui';
 
 const container: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '0 clamp(16px,4vw,32px)' };
@@ -64,27 +64,30 @@ export function Landing({ h }: { h: H }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', padding: '7px 14px', borderRadius: 999, alignSelf: 'flex-start', fontSize: 13, fontWeight: 600 }}>
               <Ic name="verified" fill size={15} />
-              Divorce verified · 21+ · {metroCountSentence()}
+              Divorce verified · 21+ · community open nationwide
             </div>
             <h1 style={{ fontFamily: serif, fontSize: 'clamp(38px,7vw,62px)', fontWeight: 600, lineHeight: 1.05, margin: 0, letterSpacing: '-0.01em' }}>
               Divorced.
               <br />
               Not done.
             </h1>
-            {/* Verification leads. It is the one concrete, checkable claim we can
-                make in a category where nobody believes anything — and the only
-                thing here a general dating app can't say. Wording stays inside
-                the limits set in the Terms: a reviewed document, nothing more. */}
+            {/* The community leads, because it is the part that works today.
+                A community is useful at ten members; dating needs hundreds in
+                one city, and promising it first to someone whose city is empty
+                is how a first visit becomes a last one. Verification comes
+                second — still the one concrete, checkable claim in a category
+                where nobody believes anything, and still worded inside the
+                limits set in the Terms: a reviewed document, nothing more. */}
             <p style={{ fontSize: 19, color: '#57534E', lineHeight: 1.65, margin: 0, maxWidth: 520 }}>
-              The dating community where members can <strong style={{ color: '#211D1A' }}>prove they're actually divorced</strong>. Upload your decree, get a
-              verified badge, and stop wondering. Join free for the community — date only when you're ready.
+              A place where people <strong style={{ color: '#211D1A' }}>get it</strong> — the co-parenting week from hell, the empty Saturday, starting over at 47.
+              Free, wherever you live. Members can also prove they're actually divorced, so when you're ready to date, you know who you're talking to.
             </p>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <button onClick={h.goGetStarted} className="hvb-rosedeep" style={{ background: '#e11d48', color: '#fff', border: 'none', borderRadius: 999, padding: '15px 32px', fontSize: 17, fontWeight: 600, cursor: 'pointer', boxShadow: '0 8px 24px rgba(225,29,72,0.25)' }}>
                 Join the community — free
               </button>
               <button onClick={() => h.scrollAnchor('dating-anchor')} className="hvb-sand" style={{ background: 'transparent', color: '#211D1A', border: '1.5px solid #D6CCC2', borderRadius: 999, padding: '14px 28px', fontSize: 17, fontWeight: 500, cursor: 'pointer' }}>
-                I'm ready to date
+                Dating in {metroListSentence()}
               </button>
             </div>
             <p style={{ fontSize: 13, color: '#78716C', margin: 0, lineHeight: 1.6 }}>
