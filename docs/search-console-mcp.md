@@ -41,6 +41,12 @@ there. `GSC_SKIP_OAUTH=true` is set in `.mcp.json` for that reason.
    so a relative path resolves somewhere unexpected and the server will tell
    you so.
 
+Its error message offers a fallback: dropping a file called
+`service_account_credentials.json` in the project root. That works, but it puts
+a live credential inside the repo, so `.gitignore` names that exact file too.
+Prefer the environment variable and a path outside the repo — a key that is
+never in the working tree cannot be committed by a mistake no rule anticipated.
+
 ### OAuth — simpler if you only ever run Claude Code locally
 
 Download an OAuth client ID JSON from the same Credentials screen, then in

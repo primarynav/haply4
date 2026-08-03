@@ -9,6 +9,7 @@ dist
 # it never belongs in the repo, and these patterns are here so an accidental
 # `git add .` cannot commit one.
 service_account.json
+service_account_credentials.json
 client_secrets.json
 gsc-*.json
 .gsc/
