@@ -4,6 +4,15 @@ dist
 .env
 .env.local
 
+# Google Search Console credentials for the `gsc` MCP server (.mcp.json).
+# A service-account key is a live credential for the Search Console property —
+# it never belongs in the repo, and these patterns are here so an accidental
+# `git add .` cannot commit one.
+service_account.json
+client_secrets.json
+gsc-*.json
+.gsc/
+
 # iOS
 ios/App/Pods
 ios/App/App/public
